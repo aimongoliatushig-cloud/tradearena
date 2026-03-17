@@ -11,13 +11,13 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default:
-          "border-[#2593ff]/60 bg-[#0781fe] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.32),0_16px_30px_rgba(7,129,254,0.24)] hover:border-[#3daafe]/70 hover:bg-[#025ee4] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.38),0_18px_34px_rgba(7,129,254,0.3)]",
+          "border-[#2dd0b1]/45 bg-[linear-gradient(135deg,#1cc6a4_0%,#149f88_100%)] text-[#071210] shadow-[inset_0_1px_0_rgba(255,255,255,0.24),0_16px_30px_rgba(24,199,162,0.18)] hover:border-[#5ce0c6]/55 hover:bg-[linear-gradient(135deg,#25d1b0_0%,#16ab92_100%)] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_18px_34px_rgba(24,199,162,0.24)]",
         outline:
-          "border-white/12 bg-white/[0.035] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] hover:bg-white/[0.08]",
+          "border-white/10 bg-white/[0.02] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] hover:bg-white/[0.055]",
         secondary:
-          "border-white/12 bg-transparent text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] hover:bg-white/[0.08]",
+          "border-white/10 bg-transparent text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] hover:bg-white/[0.055]",
         ghost:
-          "border-transparent bg-transparent text-white/72 hover:bg-white/6 hover:text-white",
+          "border-transparent bg-transparent text-white/66 hover:bg-white/[0.045] hover:text-white",
         destructive:
           "border-red-500/50 bg-red-600 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.22)] hover:bg-red-700",
         link: "text-primary underline-offset-4 hover:underline",
