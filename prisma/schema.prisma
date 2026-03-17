@@ -1,0 +1,255 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum AccountSize {
+  SIZE_10K
+  SIZE_25K
+  SIZE_50K
+  SIZE_100K
+}
+
+enum ChallengeStep {
+  STEP_1
+  STEP_2
+}
+
+enum RoomPublicStatus {
+  PUBLIC
+  HIDDEN
+}
+
+enum RoomLifecycleStatus {
+  ACTIVE
+  EXPIRED
+  COMPLETED
+  ARCHIVED
+}
+
+enum ApplicantStatus {
+  PENDING
+  ACCEPTED
+  ASSIGNED
+  INVITATION_SENT
+  JOINED
+  REJECTED
+}
+
+enum JobType {
+  SCHEDULED_ROOM_UPDATE
+  MANUAL_TRADER_REFRESH
+  MANUAL_ROOM_REFRESH
+  ROOM_STATUS_SYNC
+}
+
+enum JobStatus {
+  RUNNING
+  SUCCESS
+  FAILED
+  PARTIAL
+  SKIPPED
+}
+
+enum FetchSource {
+  SCHEDULER
+  MANUAL
+  API
+}
+
+enum NotificationChannel {
+  EMAIL
+  TELEGRAM
+}
+
+enum NotificationKind {
+  ROOM_INVITATION
+  GENERAL_UPDATE
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+  SKIPPED
+}
+
+model AdminUser {
+  id           String         @id @default(cuid())
+  email        String         @unique
+  name         String
+  passwordHash String
+  lastLoginAt  DateTime?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  sessions     AdminSession[]
+}
+
+model AdminSession {
+  id         String    @id @default(cuid())
+  userId     String
+  tokenHash  String    @unique
+  expiresAt  DateTime
+  createdAt  DateTime  @default(now())
+  lastSeenAt DateTime?
+  user       AdminUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+}
+
+model ChallengeRoom {
+  id                  String              @id @default(cuid())
+  title               String
+  slug                String              @unique
+  description         String?
+  accountSize         AccountSize
+  step                ChallengeStep
+  startDate           DateTime
+  endDate             DateTime
+  publicStatus        RoomPublicStatus    @default(PUBLIC)
+  lifecycleStatus     RoomLifecycleStatus @default(ACTIVE)
+  maxTraderCapacity   Int                 @default(10)
+  updateTimes         String[]            @default([])
+  updateTimezone      String              @default("Asia/Ulaanbaatar")
+  allowExpiredUpdates Boolean             @default(false)
+  leaderTraderId      String?
+  winnerTraderId      String?
+  winnerDeclaredAt    DateTime?
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+  applicants          Applicant[]
+  traders             Trader[]
+  jobLogs             JobRunLog[]
+  notifications       NotificationDispatch[]
+  leaderTrader        Trader?             @relation("RoomLeader", fields: [leaderTraderId], references: [id], onDelete: SetNull)
+  winnerTrader        Trader?             @relation("RoomWinner", fields: [winnerTraderId], references: [id], onDelete: SetNull)
+
+  @@index([lifecycleStatus, startDate])
+  @@index([accountSize, step])
+}
+
+model Trader {
+  id                    String          @id @default(cuid())
+  roomId                String
+  fullName              String
+  metrixUrl             String          @unique
+  active                Boolean         @default(true)
+  currentProfitPercent  Float           @default(0)
+  currentProfitAbsolute Float?
+  currentDailyLossValue Float?
+  currentMaxLossValue   Float?
+  currentBalance        Float?
+  currentEquity         Float?
+  violationFlag         Boolean         @default(false)
+  violationReason       String?
+  rank                  Int?
+  latestSnapshotAt      DateTime?
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+  room                  ChallengeRoom   @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  snapshots             TraderSnapshot[]
+  jobLogs               JobRunLog[]
+  leadingRooms          ChallengeRoom[] @relation("RoomLeader")
+  winningRooms          ChallengeRoom[] @relation("RoomWinner")
+
+  @@unique([roomId, fullName])
+  @@index([roomId, rank])
+}
+
+model TraderSnapshot {
+  id            String   @id @default(cuid())
+  traderId      String
+  fetchedAt     DateTime @default(now())
+  profitPercent Float
+  profitAbsolute Float?
+  dailyLossValue Float?
+  maxLossValue   Float?
+  balance        Float?
+  equity         Float?
+  statusNotes    String?
+  rawPayload     Json?
+  trader         Trader   @relation(fields: [traderId], references: [id], onDelete: Cascade)
+
+  @@index([traderId, fetchedAt])
+}
+
+model Applicant {
+  id                 String               @id @default(cuid())
+  roomId             String?
+  fullName           String
+  email              String               @unique
+  phoneNumber        String
+  telegramUsername   String?
+  desiredAccountSize AccountSize
+  note               String?
+  status             ApplicantStatus      @default(PENDING)
+  invitationSentAt   DateTime?
+  joinedAt           DateTime?
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+  room               ChallengeRoom?       @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  notifications      NotificationDispatch[]
+
+  @@index([desiredAccountSize, status])
+  @@index([email, createdAt])
+}
+
+model NotificationDispatch {
+  id           String             @id @default(cuid())
+  roomId       String?
+  applicantId  String?
+  channel      NotificationChannel
+  kind         NotificationKind
+  recipient    String
+  subject      String?
+  message      String
+  status       NotificationStatus @default(PENDING)
+  sentAt       DateTime?
+  errorMessage String?
+  createdAt    DateTime           @default(now())
+  room         ChallengeRoom?     @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  applicant    Applicant?         @relation(fields: [applicantId], references: [id], onDelete: SetNull)
+
+  @@index([channel, status, createdAt])
+}
+
+model JobRunLog {
+  id          String        @id @default(cuid())
+  roomId      String?
+  traderId    String?
+  jobType     JobType
+  source      FetchSource   @default(SCHEDULER)
+  status      JobStatus
+  startedAt   DateTime      @default(now())
+  finishedAt  DateTime?
+  scheduledFor DateTime?
+  attempt     Int           @default(1)
+  message     String?
+  details     Json?
+  room        ChallengeRoom? @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  trader      Trader?        @relation(fields: [traderId], references: [id], onDelete: SetNull)
+
+  @@index([status, startedAt])
+  @@index([roomId, startedAt])
+  @@index([traderId, startedAt])
+}
+
+model AppSetting {
+  key       String   @id
+  value     Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model SubmissionAttempt {
+  id        String   @id @default(cuid())
+  route     String
+  ipAddress String
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@index([route, ipAddress, createdAt])
+}

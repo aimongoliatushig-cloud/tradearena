@@ -1,0 +1,261 @@
+"use server";
+
+import { FetchSource } from "@prisma/client";
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+
+import { createAdminSession, destroyAdminSession, verifyPassword } from "@/lib/auth";
+import { db } from "@/lib/db";
+import { getUserFacingErrorMessage } from "@/lib/error-utils";
+import {
+  adminLoginSchema,
+  applicantStatusSchema,
+  invitationSchema,
+  roomFormSchema,
+  settingsSchema,
+  traderFormSchema,
+  traderViolationSchema,
+} from "@/lib/validators";
+import type { ActionState } from "@/server/actions/action-state";
+import { sendInvitationsByAccountSize, updateApplicantStatus } from "@/server/services/applicant-service";
+import { deleteTrader, upsertRoom, upsertTrader } from "@/server/services/room-service";
+import { saveSettings } from "@/server/services/settings-service";
+import { refreshRoomStats, refreshTraderStats, setTraderViolation } from "@/server/services/trader-service";
+
+function toBoolean(value: FormDataEntryValue | null) {
+  return value === "on" || value === "true";
+}
+
+function buildRedirect(pathname: string, type: "success" | "error", message: string) {
+  const params = new URLSearchParams({ [type]: message });
+  return `${pathname}?${params.toString()}`;
+}
+
+function redirectWithMessage(pathname: string, type: "success" | "error", message: string): never {
+  redirect(buildRedirect(pathname, type, message));
+}
+
+function revalidatePaths(paths: string[]) {
+  for (const path of paths) {
+    revalidatePath(path);
+  }
+}
+
+export async function loginAdminAction(_: ActionState, formData: FormData): Promise<ActionState> {
+  const parsed = adminLoginSchema.safeParse({
+    email: formData.get("email"),
+    password: formData.get("password"),
+  });
+
+  if (!parsed.success) {
+    return {
+      status: "error",
+      message: "Имэйл эсвэл нууц үг буруу байна.",
+      fieldErrors: parsed.error.flatten().fieldErrors,
+    };
+  }
+
+  const admin = await db.adminUser.findUnique({
+    where: { email: parsed.data.email },
+  });
+
+  if (!admin || !(await verifyPassword(parsed.data.password, admin.passwordHash))) {
+    return {
+      status: "error",
+      message: "Имэйл эсвэл нууц үг буруу байна.",
+    };
+  }
+
+  await db.adminUser.update({
+    where: { id: admin.id },
+    data: { lastLoginAt: new Date() },
+  });
+
+  await createAdminSession(admin.id);
+  redirect("/admin");
+}
+
+export async function logoutAdminAction() {
+  await destroyAdminSession();
+  redirect("/admin/login");
+}
+
+export async function saveRoomFormAction(formData: FormData) {
+  const returnPath = String(formData.get("returnPath") || "/admin/rooms");
+  let successPath = returnPath;
+
+  try {
+    const parsed = roomFormSchema.parse({
+      id: formData.get("id") || undefined,
+      title: formData.get("title"),
+      description: formData.get("description") || undefined,
+      accountSize: formData.get("accountSize"),
+      step: formData.get("step"),
+      startDate: formData.get("startDate"),
+      endDate: formData.get("endDate"),
+      publicStatus: formData.get("publicStatus"),
+      lifecycleStatus: formData.get("lifecycleStatus"),
+      maxTraderCapacity: formData.get("maxTraderCapacity"),
+      updateTimesInput: formData.get("updateTimesInput") || undefined,
+      updateTimezone: formData.get("updateTimezone"),
+      allowExpiredUpdates: toBoolean(formData.get("allowExpiredUpdates")),
+    });
+
+    const room = await upsertRoom(parsed);
+    successPath = parsed.id ? returnPath : `/admin/rooms/${room.id}`;
+
+    revalidatePaths(["/admin", "/admin/rooms", `/admin/rooms/${room.id}`, "/", "/rooms", "/history"]);
+  } catch (error) {
+    redirectWithMessage(returnPath, "error", getUserFacingErrorMessage(error, "Өрөө хадгалах үед алдаа гарлаа."));
+  }
+
+  redirectWithMessage(successPath, "success", "Өрөө амжилттай хадгалагдлаа.");
+}
+
+export async function saveTraderFormAction(formData: FormData) {
+  const roomId = String(formData.get("roomId"));
+  const returnPath = String(formData.get("returnPath") || `/admin/rooms/${roomId}`);
+
+  try {
+    const parsed = traderFormSchema.parse({
+      roomId,
+      traderId: formData.get("traderId") || undefined,
+      fullName: formData.get("fullName"),
+      metrixUrl: formData.get("metrixUrl"),
+      active: toBoolean(formData.get("active")),
+    });
+
+    await upsertTrader(parsed);
+
+    revalidatePaths([`/admin/rooms/${parsed.roomId}`, "/admin/traders", "/", "/rooms"]);
+  } catch (error) {
+    redirectWithMessage(returnPath, "error", getUserFacingErrorMessage(error, "Трейдер хадгалах үед алдаа гарлаа."));
+  }
+
+  redirectWithMessage(returnPath, "success", "Трейдерийн мэдээлэл хадгалагдлаа.");
+}
+
+export async function deleteTraderFormAction(formData: FormData) {
+  const traderId = String(formData.get("traderId"));
+  const roomId = String(formData.get("roomId"));
+  const returnPath = String(formData.get("returnPath") || `/admin/rooms/${roomId}`);
+
+  await deleteTrader(traderId);
+
+  revalidatePaths([`/admin/rooms/${roomId}`, "/admin/traders", "/", "/rooms"]);
+  redirectWithMessage(returnPath, "success", "Трейдер устлаа.");
+}
+
+export async function setTraderViolationAction(formData: FormData) {
+  const roomId = String(formData.get("roomId"));
+  const returnPath = String(formData.get("returnPath") || `/admin/rooms/${roomId}`);
+
+  try {
+    const parsed = traderViolationSchema.parse({
+      traderId: formData.get("traderId"),
+      violationFlag: toBoolean(formData.get("violationFlag")),
+      violationReason: formData.get("violationReason") || undefined,
+    });
+
+    await setTraderViolation(parsed);
+
+    revalidatePaths([`/admin/rooms/${roomId}`, "/admin/traders", `/rooms/${roomId}`]);
+  } catch (error) {
+    redirectWithMessage(returnPath, "error", getUserFacingErrorMessage(error, "Зөрчил шинэчлэхэд алдаа гарлаа."));
+  }
+
+  redirectWithMessage(returnPath, "success", "Зөрчлийн төлөв шинэчлэгдлээ.");
+}
+
+export async function refreshTraderAction(formData: FormData) {
+  const traderId = String(formData.get("traderId"));
+  const roomId = String(formData.get("roomId"));
+  const returnPath = String(formData.get("returnPath") || `/admin/rooms/${roomId}`);
+
+  try {
+    await refreshTraderStats(traderId, FetchSource.MANUAL);
+
+    revalidatePaths([`/admin/rooms/${roomId}`, "/admin/traders", `/rooms/${roomId}`, "/", "/rooms"]);
+  } catch (error) {
+    redirectWithMessage(returnPath, "error", getUserFacingErrorMessage(error, "Шинэчлэх үед алдаа гарлаа."));
+  }
+
+  redirectWithMessage(returnPath, "success", "Трейдерийг гараар шинэчиллээ.");
+}
+
+export async function refreshRoomAction(formData: FormData) {
+  const roomId = String(formData.get("roomId"));
+  const returnPath = String(formData.get("returnPath") || `/admin/rooms/${roomId}`);
+
+  try {
+    await refreshRoomStats(roomId, FetchSource.MANUAL);
+
+    revalidatePaths([`/admin/rooms/${roomId}`, "/admin/traders", "/admin/logs", `/rooms/${roomId}`, "/", "/rooms"]);
+  } catch (error) {
+    redirectWithMessage(returnPath, "error", getUserFacingErrorMessage(error, "Өрөө шинэчлэх үед алдаа гарлаа."));
+  }
+
+  redirectWithMessage(returnPath, "success", "Өрөөний бүх трейдер амжилттай шинэчлэгдлээ.");
+}
+
+export async function updateApplicantStatusAction(formData: FormData) {
+  const returnPath = String(formData.get("returnPath") || "/admin/applicants");
+
+  try {
+    const parsed = applicantStatusSchema.parse({
+      applicantId: formData.get("applicantId"),
+      status: formData.get("status"),
+      roomId: formData.get("roomId") || undefined,
+    });
+
+    await updateApplicantStatus(parsed);
+    revalidatePaths(["/admin/applicants"]);
+  } catch (error) {
+    redirectWithMessage(returnPath, "error", getUserFacingErrorMessage(error, "Өргөдлийн төлөв шинэчлэх үед алдаа гарлаа."));
+  }
+
+  redirectWithMessage(returnPath, "success", "Өргөдлийн төлөв шинэчлэгдлээ.");
+}
+
+export async function sendInvitationsAction(formData: FormData) {
+  const returnPath = String(formData.get("returnPath") || "/admin/applicants");
+  let successMessage = "0 өргөдөлд урилгын мэдээлэл боловсруулагдлаа.";
+
+  try {
+    const parsed = invitationSchema.parse({
+      accountSize: formData.get("accountSize"),
+      roomLink: formData.get("roomLink"),
+      subject: formData.get("subject"),
+      extraInstructions: formData.get("extraInstructions"),
+    });
+
+    const sent = await sendInvitationsByAccountSize(parsed);
+    successMessage = `${sent} өргөдөлд урилгын мэдээлэл боловсруулагдлаа.`;
+
+    revalidatePaths(["/admin/applicants"]);
+  } catch (error) {
+    redirectWithMessage(returnPath, "error", getUserFacingErrorMessage(error, "Урилга боловсруулах үед алдаа гарлаа."));
+  }
+
+  redirectWithMessage(returnPath, "success", successMessage);
+}
+
+export async function saveSettingsAction(formData: FormData) {
+  const returnPath = String(formData.get("returnPath") || "/admin/settings");
+
+  try {
+    const parsed = settingsSchema.parse({
+      defaultScheduleInput: formData.get("defaultScheduleInput"),
+      timezone: formData.get("timezone"),
+      invitationSubject: formData.get("invitationSubject"),
+      invitationMessage: formData.get("invitationMessage"),
+    });
+
+    await saveSettings(parsed);
+    revalidatePaths(["/admin/settings"]);
+  } catch (error) {
+    redirectWithMessage(returnPath, "error", getUserFacingErrorMessage(error, "Тохиргоо хадгалах үед алдаа гарлаа."));
+  }
+
+  redirectWithMessage(returnPath, "success", "Системийн тохиргоо хадгалагдлаа.");
+}
