@@ -1,23 +1,23 @@
 import Link from "next/link";
 import { ArrowRight, ShieldCheck, WalletCards } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/lib/button-variants";
 import { formatUsd, PRICING_COMPARISON_DATA } from "@/lib/pricing";
 
 const savingsRatios = PRICING_COMPARISON_DATA.map((item) => item.ftmo / item.tradeArena);
 const roundedAverageMultiple = Math.round(savingsRatios.reduce((sum, ratio) => sum + ratio, 0) / savingsRatios.length);
-const savingsRangeLabel = `${Math.round(Math.min(...savingsRatios))}–${Math.round(Math.max(...savingsRatios))}x хүртэл хямд`;
+const savingsRangeLabel = `${Math.round(Math.min(...savingsRatios))}-${Math.round(Math.max(...savingsRatios))}x хүртэл хямд`;
 
 function SectionHeading() {
   return (
     <div className="max-w-3xl space-y-4">
-      <div className="ftmo-kicker">Үнэний харьцуулалт</div>
+      <div className="ftmo-kicker">Үнийн харьцуулалт</div>
       <h2 className="text-3xl font-semibold leading-tight tracking-[-0.04em] text-white sm:text-4xl">
         Ганцаараа challenge авах уу, эсвэл бага зардлаар бодит дарамттай бэлтгэл хийх үү?
       </h2>
       <p className="max-w-3xl text-sm leading-7 text-white/62 sm:text-[15px]">
-        FTMO challenge-г ганцаараа авахад өндөр төлбөртэй. TradeArena дээр 10 хүн нийлж оролцсоноор илүү бага
-        зардлаар, илүү сахилга баттай орчинд өөрийгөө сорих боломжтой.
+        FTMO challenge-г ганцаараа авахад өндөр төлбөртэй. TradeArena дээр 10 хүн нийлж оролцсоноор илүү бага зардлаар, илүү
+        сахилга баттай орчинд өөрийгөө сорих боломжтой.
       </p>
       <div className="inline-flex items-center rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-white/68">
         {savingsRangeLabel}
@@ -139,14 +139,13 @@ export function PricingComparisonSection() {
         <div className="max-w-3xl space-y-2">
           <div className="text-2xl font-semibold tracking-[-0.04em] text-white">Бага мөнгөөр. Бодит мэт дарамт. Илүү сахилга.</div>
           <p className="text-sm leading-7 text-white/58">
-            TradeArena нь зөвхөн үнийн давуу тал биш — дүрэм барих, сэтгэлзүйгээ шалгах, хяналттай орчинд бэлтгэх
-            систем юм.
+            TradeArena нь зөвхөн үнийн давуу тал биш. Дүрэм барих, сэтгэлзүйгээ шалгах, хяналттай орчинд бэлтгэх систем юм.
           </p>
         </div>
-        <Button size="lg" render={<Link href="/apply" />} className="justify-center">
+        <Link href="/apply" className={buttonVariants({ size: "lg" })}>
           Оролцох хүсэлт илгээх
           <ArrowRight className="size-4" />
-        </Button>
+        </Link>
       </div>
     </section>
   );

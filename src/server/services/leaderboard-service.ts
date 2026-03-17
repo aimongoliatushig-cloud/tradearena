@@ -1,4 +1,4 @@
-import { RoomLifecycleStatus } from "@prisma/client";
+import { Prisma, RoomLifecycleStatus } from "@prisma/client";
 
 import { db } from "@/lib/db";
 
@@ -20,14 +20,22 @@ export async function recomputeRoomLeaderboard(roomId: string) {
     return [];
   }
 
-  await db.$transaction(
-    traders.map((trader, index) =>
-      db.trader.update({
-        where: { id: trader.id },
-        data: { rank: index + 1 },
-      }),
-    ),
-  );
+  const nextRanks = traders.map((trader, index) => ({
+    id: trader.id,
+    rank: index + 1,
+  }));
+  const rankNeedsUpdate = traders.some((trader, index) => trader.rank !== index + 1);
+
+  if (rankNeedsUpdate) {
+    const values = Prisma.join(nextRanks.map((item) => Prisma.sql`(${item.id}, ${item.rank})`));
+
+    await db.$executeRaw`
+      UPDATE "Trader" AS trader
+      SET "rank" = ranks.rank::int
+      FROM (VALUES ${values}) AS ranks(id, rank)
+      WHERE trader."id" = ranks.id::text
+    `;
+  }
 
   const room = await db.challengeRoom.findUnique({
     where: { id: roomId },

@@ -89,7 +89,7 @@ export async function setTraderViolation(input: {
     where: { id: input.traderId },
     data: {
       violationFlag: input.violationFlag,
-      violationReason: input.violationFlag ? input.violationReason || "Админ гараар тэмдэглэсэн" : null,
+      violationReason: input.violationFlag ? input.violationReason || "Админ гараараа тэмдэглэсэн" : null,
     },
   });
 
@@ -97,7 +97,13 @@ export async function setTraderViolation(input: {
   return trader;
 }
 
-export async function refreshTraderStats(traderId: string, source: FetchSource = FetchSource.MANUAL) {
+export async function refreshTraderStats(
+  traderId: string,
+  source: FetchSource = FetchSource.MANUAL,
+  options: { recomputeLeaderboard?: boolean } = {},
+) {
+  const shouldRecomputeLeaderboard = options.recomputeLeaderboard ?? true;
+
   const trader = await db.trader.findUnique({
     where: { id: traderId },
     include: { room: true },
@@ -121,6 +127,7 @@ export async function refreshTraderStats(traderId: string, source: FetchSource =
     traderLabel,
     url: trader.metrixUrl,
     source,
+    recomputeLeaderboard: shouldRecomputeLeaderboard,
   });
 
   const log = await db.jobRunLog.create({
@@ -147,50 +154,54 @@ export async function refreshTraderStats(traderId: string, source: FetchSource =
       },
     });
 
-    await db.$transaction([
-      db.trader.update({
-        where: { id: trader.id },
-        data: {
-          currentProfitPercent: snapshot.profitPercent,
-          currentProfitAbsolute: snapshot.profitAbsolute ?? null,
-          currentDailyLossValue: snapshot.dailyLossValue ?? null,
-          currentMaxLossValue: snapshot.maxLossValue ?? null,
-          currentBalance: snapshot.balance ?? null,
-          currentEquity: snapshot.equity ?? null,
-          latestSnapshotAt: new Date(),
-        },
-      }),
-      db.traderSnapshot.create({
-        data: {
-          traderId: trader.id,
-          fetchedAt: new Date(),
-          profitPercent: snapshot.profitPercent,
-          profitAbsolute: snapshot.profitAbsolute ?? null,
-          dailyLossValue: snapshot.dailyLossValue ?? null,
-          maxLossValue: snapshot.maxLossValue ?? null,
-          balance: snapshot.balance ?? null,
-          equity: snapshot.equity ?? null,
-          statusNotes: snapshot.statusNotes ?? null,
-          rawPayload: snapshot.rawPayload,
-        },
-      }),
-      db.jobRunLog.update({
-        where: { id: log.id },
-        data: {
-          status: snapshot.statusNotes ? JobStatus.PARTIAL : JobStatus.SUCCESS,
-          finishedAt: new Date(),
-          message: snapshot.statusNotes ?? "Snapshot амжилттай хадгаллаа.",
-          details: snapshot.rawPayload,
-        },
-      }),
-    ]);
+    const finishedAt = new Date();
 
-    await recomputeRoomLeaderboard(trader.roomId);
+    await db.trader.update({
+      where: { id: trader.id },
+      data: {
+        currentProfitPercent: snapshot.profitPercent,
+        currentProfitAbsolute: snapshot.profitAbsolute ?? null,
+        currentDailyLossValue: snapshot.dailyLossValue ?? null,
+        currentMaxLossValue: snapshot.maxLossValue ?? null,
+        currentBalance: snapshot.balance ?? null,
+        currentEquity: snapshot.equity ?? null,
+        latestSnapshotAt: finishedAt,
+        snapshots: {
+          create: {
+            fetchedAt: finishedAt,
+            profitPercent: snapshot.profitPercent,
+            profitAbsolute: snapshot.profitAbsolute ?? null,
+            dailyLossValue: snapshot.dailyLossValue ?? null,
+            maxLossValue: snapshot.maxLossValue ?? null,
+            balance: snapshot.balance ?? null,
+            equity: snapshot.equity ?? null,
+            statusNotes: snapshot.statusNotes ?? null,
+            rawPayload: snapshot.rawPayload,
+          },
+        },
+      },
+    });
+
+    await db.jobRunLog.update({
+      where: { id: log.id },
+      data: {
+        status: snapshot.statusNotes ? JobStatus.PARTIAL : JobStatus.SUCCESS,
+        finishedAt,
+        message: snapshot.statusNotes ?? "Snapshot амжилттай хадгалагдлаа.",
+        details: snapshot.rawPayload,
+      },
+    });
+
+    if (shouldRecomputeLeaderboard) {
+      await recomputeRoomLeaderboard(trader.roomId);
+    }
+
     logRefresh("after-trader-refresh", {
       traderId,
       traderLabel,
       profitPercent: snapshot.profitPercent,
       statusNotes: snapshot.statusNotes,
+      recomputeLeaderboard: shouldRecomputeLeaderboard,
     });
 
     return snapshot;
@@ -269,7 +280,7 @@ export async function refreshRoomStats(roomId: string, source: FetchSource = Fet
           });
 
           try {
-            await refreshTraderStats(trader.id, source);
+            await refreshTraderStats(trader.id, source, { recomputeLeaderboard: false });
             results.push({ traderId: trader.id, status: "success" });
           } catch (error) {
             const message = error instanceof Error ? error.message : "Алдаа";

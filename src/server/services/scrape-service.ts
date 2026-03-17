@@ -94,10 +94,22 @@ function normalizeScrapeError(error: unknown) {
   }
 
   if (error.message.includes("Executable doesn't exist")) {
-    return new Error("Playwright browser суулгагдаагүй байна. `npm run playwright:install` ажиллуулна уу.");
+    return new Error("Playwright browser is not installed. Run `npm run playwright:install`.");
+  }
+
+  if (error.message.includes("Target page, context or browser has been closed")) {
+    return new Error("FTMO browser context closed before a public MetriX response was received.");
   }
 
   return error;
+}
+
+function isFtmoAuthRedirect(url: string) {
+  return url.includes("sso.ftmo.com") || url.includes("/openid-connect/auth");
+}
+
+function createPrivateMetrixError(currentUrl: string) {
+  return new Error(`FTMO public MetriX URL redirected to sign-in: ${currentUrl}`);
 }
 
 async function getBrowser(contextLabel: string) {
@@ -231,7 +243,7 @@ function buildSnapshotFromVisibleCards(visibleCards: VisibleCards): FtmoSnapshot
     equity,
     dailyLossValue: null,
     maxLossValue: null,
-    statusNotes: "FTMO structured API unavailable тул visible card fallback ашиглав.",
+    statusNotes: "FTMO structured API unavailable, visible card fallback was used.",
     rawPayload: {
       source: "visible-cards-fallback",
       visibleCards,
@@ -262,6 +274,7 @@ export async function fetchFtmoMetrics(url: string, options: FetchFtmoOptions = 
         (response) => response.url().includes("/public-api/v1/metrix/") && response.status() === 200,
         { timeout: Math.min(20000, env.FTMO_REQUEST_TIMEOUT_MS) },
       );
+      metrixResponsePromise.catch(() => undefined);
 
       page.setDefaultTimeout(env.FTMO_REQUEST_TIMEOUT_MS);
       await page.goto(url, {
@@ -269,11 +282,16 @@ export async function fetchFtmoMetrics(url: string, options: FetchFtmoOptions = 
         timeout: env.FTMO_REQUEST_TIMEOUT_MS,
       });
 
+      const currentUrl = page.url();
       logScrape("after-page-goto", {
         label,
         attempt,
-        currentUrl: page.url(),
+        currentUrl,
       });
+
+      if (isFtmoAuthRedirect(currentUrl)) {
+        throw createPrivateMetrixError(currentUrl);
+      }
 
       const metrixResponse = await metrixResponsePromise;
       const metrixPayload = (await metrixResponse.json()) as FtmoMetrixResponse;
@@ -329,6 +347,10 @@ export async function fetchFtmoMetrics(url: string, options: FetchFtmoOptions = 
           label,
           attempt,
         });
+      }
+
+      if (lastError instanceof Error && lastError.message.includes("redirected to sign-in")) {
+        break;
       }
     }
   }

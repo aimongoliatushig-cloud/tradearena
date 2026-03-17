@@ -2,8 +2,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { BarChart3, History, LayoutGrid, Send } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
-
 const navItems = [
   { href: "/", label: "Нүүр", icon: LayoutGrid },
   { href: "/rooms", label: "Өрөөнүүд", icon: BarChart3 },
@@ -32,19 +30,22 @@ export function PublicShell({ children }: { children: React.ReactNode }) {
 
           <nav className="flex flex-wrap items-center gap-2 rounded-full border border-white/8 bg-[rgba(18,24,32,0.9)] p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
             {navItems.map((item) => (
-              <Button
+              <Link
                 key={item.href}
-                variant="ghost"
-                render={<Link href={item.href} />}
-                className="h-10 rounded-full px-4 text-white/62 hover:bg-white/[0.05] hover:text-white"
+                href={item.href}
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-full px-4 text-sm font-semibold tracking-[-0.01em] text-white/62 transition hover:bg-white/[0.05] hover:text-white"
               >
                 <item.icon className="size-4" />
                 {item.label}
-              </Button>
+              </Link>
             ))}
-            <Button variant="outline" render={<Link href="/admin/login" />} className="rounded-full border-white/8 bg-[#10161d] px-4">
+
+            <Link
+              href="/admin/login"
+              className="inline-flex h-10 items-center justify-center rounded-full border border-white/8 bg-[#10161d] px-4 text-sm font-semibold tracking-[-0.01em] text-white transition hover:bg-white/[0.05]"
+            >
               Админ
-            </Button>
+            </Link>
           </nav>
         </div>
       </header>
@@ -56,7 +57,7 @@ export function PublicShell({ children }: { children: React.ReactNode }) {
           <div className="space-y-2">
             <div className="text-sm font-semibold text-white">tradearena.pro</div>
             <div className="max-w-2xl text-sm text-white/50">
-              FTMO public MetriX snapshot-уудыг хадгалж, challenge room түүхийг нээлттэй үзүүлнэ.
+              FTMO public MetriX snapshot-уудыг хадгалж, challenge өрөөнүүдийн түүхийг нээлттэй үзүүлнэ.
             </div>
           </div>
           <div className="text-xs uppercase tracking-[0.28em] text-white/32">Live rankings. Historical results.</div>

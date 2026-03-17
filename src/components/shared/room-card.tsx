@@ -4,10 +4,11 @@ import type { ChallengeRoom, Trader } from "@prisma/client";
 
 import { AccountSizeBadge } from "@/components/shared/account-size-badge";
 import { StatusBadge } from "@/components/shared/status-badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { buttonVariants } from "@/lib/button-variants";
 import { formatDate, formatDateTime, formatPercent } from "@/lib/format";
 import { roomStatusLabels, stepLabels } from "@/lib/labels";
+import { cn } from "@/lib/utils";
 
 type RoomCardRoom = ChallengeRoom & {
   traders: Trader[];
@@ -63,7 +64,7 @@ export function RoomCard({ room, href }: { room: RoomCardRoom; href: string }) {
           <div className="flex items-center justify-between text-sm text-white/58">
             <span className="flex items-center gap-2">
               <Users className="size-4" />
-              Трейдер
+              Трэйдер
             </span>
             <span>{room.traders.length}</span>
           </div>
@@ -87,10 +88,10 @@ export function RoomCard({ room, href }: { room: RoomCardRoom; href: string }) {
         </div>
       </CardContent>
       <CardFooter className="border-white/10 bg-black/20">
-        <Button render={<Link href={href} />} className="w-full justify-between rounded-[1.25rem]">
+        <Link href={href} className={cn(buttonVariants(), "w-full justify-between rounded-[1.25rem]")}>
           Эрэмбэ харах
           <ArrowRight className="size-4" />
-        </Button>
+        </Link>
       </CardFooter>
     </Card>
   );

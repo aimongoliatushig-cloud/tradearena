@@ -3,13 +3,14 @@ export const dynamic = "force-dynamic";
 import Link from "next/link";
 import { ArrowRight, Clock3, Trophy, TrendingUp, Users } from "lucide-react";
 
-import { DEFAULT_TARGET_PERCENT } from "@/lib/constants";
-import { buildProgressValue, formatPercent } from "@/lib/format";
-import { accountSizeLabels } from "@/lib/labels";
 import { PublicShell } from "@/components/layout/public-shell";
 import { PricingComparisonSection } from "@/components/shared/PricingComparisonSection";
 import { RoomCard } from "@/components/shared/room-card";
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/lib/button-variants";
+import { DEFAULT_TARGET_PERCENT } from "@/lib/constants";
+import { buildProgressValue, formatPercent } from "@/lib/format";
+import { accountSizeLabels } from "@/lib/labels";
+import { cn } from "@/lib/utils";
 import { getApplicantBuckets } from "@/server/services/applicant-service";
 import { getPublicHomepageData } from "@/server/services/room-service";
 
@@ -105,31 +106,33 @@ export default async function HomePage() {
                   <p>Шууд том мөнгө рүү орвол эрсдэл өндөр.</p>
                 </div>
 
-              <div className="rounded-[1.6rem] border border-white/8 bg-black/14 p-5">
-                <div className="mb-3 text-xs font-semibold uppercase tracking-[0.22em] text-[#95e8d5]">Манай систем</div>
-                <ul className="grid gap-3">
-                  {heroSupportPoints.map((point) => (
-                    <li key={point} className="flex items-start gap-3 text-sm leading-6 text-white/68 sm:text-[15px]">
-                      <span className="mt-2 size-1.5 shrink-0 rounded-full bg-[#63dfc2] shadow-[0_0_12px_rgba(99,223,194,0.55)]" />
-                      <span>{point}</span>
-                    </li>
-                  ))}
+                <div className="rounded-[1.6rem] border border-white/8 bg-black/14 p-5">
+                  <div className="mb-3 text-xs font-semibold uppercase tracking-[0.22em] text-[#95e8d5]">Манай систем</div>
+                  <ul className="grid gap-3">
+                    {heroSupportPoints.map((point) => (
+                      <li key={point} className="flex items-start gap-3 text-sm leading-6 text-white/68 sm:text-[15px]">
+                        <span className="mt-2 size-1.5 shrink-0 rounded-full bg-[#63dfc2] shadow-[0_0_12px_rgba(99,223,194,0.55)]" />
+                        <span>{point}</span>
+                      </li>
+                    ))}
                   </ul>
                 </div>
               </div>
 
               <div className="flex flex-wrap gap-3">
-                <Button
-                  size="lg"
-                  className="bg-[linear-gradient(135deg,#39d3b3_0%,#18c7a2_58%,#10927c_100%)] text-[#071210] shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_20px_38px_rgba(24,199,162,0.22)] hover:bg-[linear-gradient(135deg,#4fdbc0_0%,#20cfab_58%,#129b84_100%)]"
-                  render={<Link href="/rooms" />}
+                <Link
+                  href="/rooms"
+                  className={cn(
+                    buttonVariants({ size: "lg" }),
+                    "bg-[linear-gradient(135deg,#39d3b3_0%,#18c7a2_58%,#10927c_100%)] text-[#071210] shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_20px_38px_rgba(24,199,162,0.22)] hover:bg-[linear-gradient(135deg,#4fdbc0_0%,#20cfab_58%,#129b84_100%)]",
+                  )}
                 >
                   Өрөөнүүдийг харах
                   <ArrowRight className="size-4" />
-                </Button>
-              <Button size="lg" variant="outline" className="border-white/10 bg-white/[0.02] hover:bg-white/[0.05]" render={<Link href="/apply" />}>
-                Challenge-д элсэх
-              </Button>
+                </Link>
+                <Link href="/apply" className={buttonVariants({ variant: "outline", size: "lg" })}>
+                  Challenge-д нэгдэх
+                </Link>
               </div>
             </div>
 
@@ -153,15 +156,23 @@ export default async function HomePage() {
             <div className="space-y-4">
               <div className="ftmo-kicker border-white/8 bg-white/[0.03] text-white/62">Шууд самбар</div>
               <div className="space-y-2">
-                <h2 className="text-3xl font-semibold leading-tight tracking-[-0.05em] text-white">Идэвхтэй өрөөнүүдийн лидер ба бүртгэлийн эрэлт</h2>
+                <h2 className="text-3xl font-semibold leading-tight tracking-[-0.05em] text-white">
+                  Идэвхтэй өрөөнүүдийн лидер ба бүртгэлийн эрэлт
+                </h2>
                 <p className="max-w-xl text-sm leading-7 text-white/58">
                   Одоо хэн тэргүүлж байгааг, 5%-ийн зорилгод хэр ойр байгааг, дараагийн өрөөнүүд хэдэн хүнээр бүрдэхийг нэг дороос хар.
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
-                <div className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs text-white/72">{activeRooms.length} идэвхтэй өрөө</div>
-                <div className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs text-white/72">{totals.traderCount} трэйдер</div>
-                <div className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs text-white/72">{totalInterestedCount} сонирхол</div>
+                <div className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs text-white/72">
+                  {activeRooms.length} идэвхтэй өрөө
+                </div>
+                <div className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs text-white/72">
+                  {totals.traderCount} трэйдер
+                </div>
+                <div className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs text-white/72">
+                  {totalInterestedCount} сонирхол
+                </div>
               </div>
             </div>
 
@@ -264,9 +275,9 @@ export default async function HomePage() {
             <h2 className="mt-4 text-2xl font-semibold tracking-[-0.03em] text-white">Идэвхтэй challenge өрөөнүүд</h2>
             <p className="mt-2 text-sm text-white/52">Шинэ идэвхтэй өрөөнүүд эхэндээ харагдана.</p>
           </div>
-          <Button variant="outline" render={<Link href="/rooms" />}>
+          <Link href="/rooms" className={buttonVariants({ variant: "outline" })}>
             Бүгдийг харах
-          </Button>
+          </Link>
         </div>
         <div className="section-grid">
           {activeRooms.slice(0, 6).map((room) => (
@@ -319,7 +330,9 @@ export default async function HomePage() {
                 <Users className="mt-0.5 size-5 text-[#72dec5]" />
                 <div>
                   <div className="font-medium text-white">Өргөдлийн урсгал</div>
-                  <div className="mt-1 leading-6">Public хэрэглэгчид account size-аа сонгож хүсэлт өгнө, admin баталгаажуулж урилга илгээнэ.</div>
+                  <div className="mt-1 leading-6">
+                    Public хэрэглэгчид account size-аа сонгож хүсэлт өгнө, admin баталгаажуулж урилга илгээнэ.
+                  </div>
                 </div>
               </div>
             </div>

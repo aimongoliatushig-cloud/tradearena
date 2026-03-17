@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Manrope } from "next/font/google";
 import { Toaster } from "sonner";
+
 import "./globals.css";
 
-const inter = Inter({
-  variable: "--font-sans",
+const manrope = Manrope({
+  variable: "--font-body",
   subsets: ["latin", "latin-ext", "cyrillic"],
   weight: ["400", "500", "600", "700", "800"],
 });
@@ -20,10 +21,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="mn" className="dark">
-      <body
-        className={`${inter.variable} antialiased`}
-      >
+    <html lang="mn" className={`${manrope.variable} dark`}>
+      <body className="antialiased">
         {children}
         <Toaster theme="dark" richColors position="top-right" />
       </body>
