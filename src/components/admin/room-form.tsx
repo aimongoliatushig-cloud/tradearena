@@ -1,17 +1,22 @@
 import { AccountSize, ChallengeStep, RoomLifecycleStatus, RoomPublicStatus, type ChallengeRoom } from "@prisma/client";
 
+import { ScheduleTimesInput } from "@/components/admin/schedule-times-input";
 import { SubmitButton } from "@/components/forms/submit-button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { accountSizeLabels, roomPublicStatusLabels, roomStatusLabels, stepLabels } from "@/lib/labels";
 import { saveRoomFormAction } from "@/server/actions/admin-actions";
+import { getDefaultScheduleConfig } from "@/server/services/settings-service";
 
-export function RoomForm({
+export async function RoomForm({
   room,
   returnPath,
 }: {
   room?: ChallengeRoom | null;
   returnPath: string;
 }) {
+  const defaultSchedule = await getDefaultScheduleConfig();
+  const initialUpdateTimes = room?.updateTimes.length ? room.updateTimes : defaultSchedule.updateTimes;
+
   return (
     <Card className="border-white/10 bg-white/6 backdrop-blur-xl">
       <CardHeader>
@@ -121,12 +126,7 @@ export function RoomForm({
           <div className="grid gap-4 md:grid-cols-[1fr_auto]">
             <div className="space-y-2">
               <label className="text-sm text-white/70">Өдрийн шинэчлэлтийн цагууд</label>
-              <input
-                name="updateTimesInput"
-                defaultValue={room?.updateTimes.join(", ") ?? "09:00, 21:00"}
-                placeholder="09:00, 21:00"
-                className="flex h-11 w-full rounded-2xl border border-white/12 bg-slate-950/60 px-4 text-white outline-none"
-              />
+              <ScheduleTimesInput name="updateTimesInput" defaultTimes={initialUpdateTimes} />
             </div>
             <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/70">
               <input type="checkbox" name="allowExpiredUpdates" defaultChecked={room?.allowExpiredUpdates ?? false} />

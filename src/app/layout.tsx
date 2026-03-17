@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Manrope } from "next/font/google";
 import { Toaster } from "sonner";
 
+import { bootScheduler } from "@/server/services/scheduler-bootstrap";
+
 import "./globals.css";
 
 const manrope = Manrope({
@@ -20,6 +22,8 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  bootScheduler();
+
   return (
     <html lang="mn" className={`${manrope.variable} dark`}>
       <body className="antialiased">

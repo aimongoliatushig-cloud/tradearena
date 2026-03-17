@@ -1,50 +1,13 @@
 import "dotenv/config";
 
-import cron from "node-cron";
-
-import { env } from "@/lib/env";
-import { closeFtmoBrowser } from "@/server/services/scrape-service";
-import { runSchedulerTick } from "@/server/services/scheduler-service";
-
-let running = false;
-
-async function tick(reason: string) {
-  if (running) return;
-  running = true;
-
-  try {
-    await runSchedulerTick(reason);
-  } finally {
-    running = false;
-  }
-}
+import { ensureSchedulerStarted } from "@/server/services/scheduler-runtime";
 
 async function boot() {
-  await tick("startup");
-
-  cron.schedule(
-    "* * * * *",
-    async () => {
-      await tick("cron");
-    },
-    {
-      timezone: env.APP_TIMEZONE,
-    },
-  );
-
-  process.on("SIGINT", async () => {
-    await closeFtmoBrowser();
-    process.exit(0);
-  });
-
-  process.on("SIGTERM", async () => {
-    await closeFtmoBrowser();
-    process.exit(0);
-  });
+  ensureSchedulerStarted("worker-startup");
+  await new Promise<void>(() => undefined);
 }
 
-boot().catch(async (error) => {
+boot().catch((error) => {
   console.error(error);
-  await closeFtmoBrowser();
   process.exit(1);
 });

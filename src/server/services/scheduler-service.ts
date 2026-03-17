@@ -9,25 +9,48 @@ function toMinuteKey(date: Date) {
   return dayjs(date).utc().second(0).millisecond(0).toDate();
 }
 
-async function hasRoomRunForMinute(roomId: string, minute: Date) {
-  const count = await db.jobRunLog.count({
-    where: {
-      roomId,
-      jobType: JobType.SCHEDULED_ROOM_UPDATE,
-      scheduledFor: minute,
-      status: {
-        in: [JobStatus.RUNNING, JobStatus.SUCCESS, JobStatus.PARTIAL],
-      },
-    },
-  });
-
-  return count > 0;
-}
-
 function isRoomDue(now: Date, updateTimes: string[], timezone: string) {
   const local = dayjs(now).tz(timezone);
   const current = local.format("HH:mm");
   return updateTimes.includes(current);
+}
+
+async function claimRoomRun(roomId: string, minute: Date, reason: string) {
+  return db.$transaction(async (tx) => {
+    const [lockRow] = await tx.$queryRaw<Array<{ locked: boolean }>>`
+      SELECT pg_try_advisory_xact_lock(hashtext(${roomId}), hashtext(${minute.toISOString()})) AS locked
+    `;
+
+    if (!lockRow?.locked) {
+      return null;
+    }
+
+    const count = await tx.jobRunLog.count({
+      where: {
+        roomId,
+        jobType: JobType.SCHEDULED_ROOM_UPDATE,
+        scheduledFor: minute,
+        status: {
+          in: [JobStatus.RUNNING, JobStatus.SUCCESS, JobStatus.PARTIAL],
+        },
+      },
+    });
+
+    if (count > 0) {
+      return null;
+    }
+
+    return tx.jobRunLog.create({
+      data: {
+        roomId,
+        jobType: JobType.SCHEDULED_ROOM_UPDATE,
+        status: JobStatus.RUNNING,
+        source: FetchSource.SCHEDULER,
+        scheduledFor: minute,
+        message: `Scheduler tick (${reason}) эхэллээ.`,
+      },
+    });
+  });
 }
 
 export async function runSchedulerTick(reason = "worker") {
@@ -57,24 +80,19 @@ export async function runSchedulerTick(reason = "worker") {
       continue;
     }
 
-    if (await hasRoomRunForMinute(room.id, minuteKey)) {
-      continue;
-    }
-
     dueRooms.push(room.id);
   }
 
+  const startedRooms: string[] = [];
+
   for (const roomId of dueRooms) {
-    const log = await db.jobRunLog.create({
-      data: {
-        roomId,
-        jobType: JobType.SCHEDULED_ROOM_UPDATE,
-        status: JobStatus.RUNNING,
-        source: FetchSource.SCHEDULER,
-        scheduledFor: minuteKey,
-        message: `Scheduler tick (${reason}) эхэллээ.`,
-      },
-    });
+    const log = await claimRoomRun(roomId, minuteKey, reason);
+
+    if (!log) {
+      continue;
+    }
+
+    startedRooms.push(roomId);
 
     try {
       const result = await refreshRoomStats(roomId, FetchSource.SCHEDULER);
@@ -113,7 +131,7 @@ export async function runSchedulerTick(reason = "worker") {
 
   return {
     lifecycleUpdates,
-    dueRooms,
+    dueRooms: startedRooms,
     minuteKey,
   };
 }
