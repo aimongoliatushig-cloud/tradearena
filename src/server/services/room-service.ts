@@ -1,8 +1,9 @@
-import { AccountSize, ApplicantStatus, ChallengeStep, RoomLifecycleStatus, RoomPublicStatus, type ChallengeRoom } from "@prisma/client";
+import { ApplicantStatus, ChallengeStep, RoomPublicStatus, type AccountSize, type ChallengeRoom, type RoomLifecycleStatus } from "@prisma/client";
 
 import { db } from "@/lib/db";
 import { leaderboardTraderOrderBy } from "@/lib/leaderboard";
 import { accountSizeLabels } from "@/lib/labels";
+import { ACCOUNT_SIZE_OPTIONS, ROOM_LIFECYCLE_STATUS, SIGNUP_ROOM_STATUS_OPTIONS } from "@/lib/prisma-enums";
 import { getDefaultEntryFeeUsd } from "@/lib/pricing";
 import { normalizeFtmoUrl, parseScheduleInput } from "@/lib/validators";
 import { recomputeRoomLeaderboard } from "@/server/services/leaderboard-service";
@@ -64,7 +65,12 @@ export async function listPublicRooms() {
     where: {
       publicStatus: RoomPublicStatus.PUBLIC,
       lifecycleStatus: {
-        in: [RoomLifecycleStatus.ACTIVE, RoomLifecycleStatus.EXPIRED, RoomLifecycleStatus.COMPLETED, RoomLifecycleStatus.ARCHIVED],
+        in: [
+          ROOM_LIFECYCLE_STATUS.ACTIVE,
+          ROOM_LIFECYCLE_STATUS.EXPIRED,
+          ROOM_LIFECYCLE_STATUS.COMPLETED,
+          ROOM_LIFECYCLE_STATUS.ARCHIVED,
+        ],
       },
     },
     include: {
@@ -84,7 +90,7 @@ export async function listSignupRooms() {
   const rooms = await db.challengeRoom.findMany({
     where: {
       publicStatus: RoomPublicStatus.PUBLIC,
-      lifecycleStatus: RoomLifecycleStatus.SIGNUP_OPEN,
+      lifecycleStatus: ROOM_LIFECYCLE_STATUS.SIGNUP_OPEN,
     },
     include: {
       applicants: {
@@ -113,8 +119,8 @@ export async function listSignupRooms() {
 
 export async function getPublicHomepageData() {
   const rooms = await listPublicRooms();
-  const activeRooms = rooms.filter((room) => room.lifecycleStatus === RoomLifecycleStatus.ACTIVE);
-  const historicalRooms = rooms.filter((room) => room.lifecycleStatus !== RoomLifecycleStatus.ACTIVE);
+  const activeRooms = rooms.filter((room) => room.lifecycleStatus === ROOM_LIFECYCLE_STATUS.ACTIVE);
+  const historicalRooms = rooms.filter((room) => room.lifecycleStatus !== ROOM_LIFECYCLE_STATUS.ACTIVE);
 
   return {
     activeRooms,
@@ -132,7 +138,7 @@ export async function listHistoricalRooms() {
     where: {
       publicStatus: RoomPublicStatus.PUBLIC,
       lifecycleStatus: {
-        in: [RoomLifecycleStatus.EXPIRED, RoomLifecycleStatus.COMPLETED, RoomLifecycleStatus.ARCHIVED],
+        in: [ROOM_LIFECYCLE_STATUS.EXPIRED, ROOM_LIFECYCLE_STATUS.COMPLETED, ROOM_LIFECYCLE_STATUS.ARCHIVED],
       },
     },
     include: {
@@ -151,11 +157,11 @@ export async function getPublicRoomDetail(roomIdOrSlug: string) {
       publicStatus: RoomPublicStatus.PUBLIC,
       lifecycleStatus: {
         in: [
-          RoomLifecycleStatus.READY_TO_START,
-          RoomLifecycleStatus.ACTIVE,
-          RoomLifecycleStatus.EXPIRED,
-          RoomLifecycleStatus.COMPLETED,
-          RoomLifecycleStatus.ARCHIVED,
+          ROOM_LIFECYCLE_STATUS.READY_TO_START,
+          ROOM_LIFECYCLE_STATUS.ACTIVE,
+          ROOM_LIFECYCLE_STATUS.EXPIRED,
+          ROOM_LIFECYCLE_STATUS.COMPLETED,
+          ROOM_LIFECYCLE_STATUS.ARCHIVED,
         ],
       },
       OR: [{ id: roomIdOrSlug }, { slug: roomIdOrSlug }],
@@ -310,7 +316,7 @@ export async function deleteTrader(traderId: string) {
 }
 
 export async function ensureSignupRooms() {
-  await Promise.all(Object.values(AccountSize).map((accountSize) => ensureOpenSignupRoom(accountSize)));
+  await Promise.all(ACCOUNT_SIZE_OPTIONS.map((accountSize) => ensureOpenSignupRoom(accountSize)));
 }
 
 export async function ensureOpenSignupRoom(
@@ -326,7 +332,7 @@ export async function ensureOpenSignupRoom(
     where: {
       accountSize,
       publicStatus: RoomPublicStatus.PUBLIC,
-      lifecycleStatus: RoomLifecycleStatus.SIGNUP_OPEN,
+      lifecycleStatus: ROOM_LIFECYCLE_STATUS.SIGNUP_OPEN,
     },
     orderBy: [{ createdAt: "asc" }],
   });
@@ -342,7 +348,7 @@ export async function ensureOpenSignupRoom(
     where: {
       accountSize,
       lifecycleStatus: {
-        in: [RoomLifecycleStatus.SIGNUP_OPEN, RoomLifecycleStatus.READY_TO_START],
+        in: [...SIGNUP_ROOM_STATUS_OPTIONS],
       },
     },
   });
@@ -359,7 +365,7 @@ export async function ensureOpenSignupRoom(
       startDate: now,
       endDate,
       publicStatus: RoomPublicStatus.PUBLIC,
-      lifecycleStatus: RoomLifecycleStatus.SIGNUP_OPEN,
+      lifecycleStatus: ROOM_LIFECYCLE_STATUS.SIGNUP_OPEN,
       maxTraderCapacity: template?.maxTraderCapacity ?? 10,
       updateTimes: template?.updateTimes?.length ? template.updateTimes : defaultSchedule.updateTimes,
       updateTimezone: template?.updateTimezone ?? defaultSchedule.timezone,
@@ -372,8 +378,8 @@ export function sortRooms(
   left: { lifecycleStatus: RoomLifecycleStatus; startDate: Date },
   right: { lifecycleStatus: RoomLifecycleStatus; startDate: Date },
 ) {
-  const leftPriority = left.lifecycleStatus === RoomLifecycleStatus.ACTIVE ? 0 : 1;
-  const rightPriority = right.lifecycleStatus === RoomLifecycleStatus.ACTIVE ? 0 : 1;
+  const leftPriority = left.lifecycleStatus === ROOM_LIFECYCLE_STATUS.ACTIVE ? 0 : 1;
+  const rightPriority = right.lifecycleStatus === ROOM_LIFECYCLE_STATUS.ACTIVE ? 0 : 1;
 
   if (leftPriority !== rightPriority) {
     return leftPriority - rightPriority;

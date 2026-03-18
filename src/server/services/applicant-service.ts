@@ -1,13 +1,13 @@
 import {
-  AccountSize,
   ApplicantStatus,
   Prisma,
-  RoomLifecycleStatus,
   RoomPublicStatus,
+  type AccountSize,
 } from "@prisma/client";
 
 import { APPLY_RATE_LIMIT_PER_HOUR } from "@/lib/constants";
 import { db } from "@/lib/db";
+import { ACCOUNT_SIZE_OPTIONS, ROOM_LIFECYCLE_STATUS } from "@/lib/prisma-enums";
 import { sendRoomReadyNotifications, sendSignupNotifications } from "@/server/services/notification-service";
 import { ensureOpenSignupRoom } from "@/server/services/room-service";
 
@@ -31,13 +31,13 @@ export async function listApplicants(accountSize?: AccountSize) {
 export async function getApplicantBuckets() {
   const applicants = await listApplicants();
 
-  return Object.values(AccountSize).map((size) => {
+  return ACCOUNT_SIZE_OPTIONS.map((size) => {
     const sizeApplicants = applicants.filter((applicant) => applicant.desiredAccountSize === size);
     const openRoomApplicants = sizeApplicants.filter(
-      (item) => item.status !== ApplicantStatus.REJECTED && item.room?.lifecycleStatus === RoomLifecycleStatus.SIGNUP_OPEN,
+      (item) => item.status !== ApplicantStatus.REJECTED && item.room?.lifecycleStatus === ROOM_LIFECYCLE_STATUS.SIGNUP_OPEN,
     );
     const readyRoomApplicants = sizeApplicants.filter(
-      (item) => item.status !== ApplicantStatus.REJECTED && item.room?.lifecycleStatus === RoomLifecycleStatus.READY_TO_START,
+      (item) => item.status !== ApplicantStatus.REJECTED && item.room?.lifecycleStatus === ROOM_LIFECYCLE_STATUS.READY_TO_START,
     );
     const contactedApplicants = sizeApplicants.filter((item) => item.status === ApplicantStatus.INVITATION_SENT);
 
@@ -95,7 +95,7 @@ export async function createApplicant(input: {
       const room = await tx.challengeRoom.findFirst({
         where: {
           id: input.roomId,
-          lifecycleStatus: RoomLifecycleStatus.SIGNUP_OPEN,
+          lifecycleStatus: ROOM_LIFECYCLE_STATUS.SIGNUP_OPEN,
           publicStatus: RoomPublicStatus.PUBLIC,
         },
         include: {
@@ -159,7 +159,7 @@ export async function createApplicant(input: {
         await tx.challengeRoom.update({
           where: { id: room.id },
           data: {
-            lifecycleStatus: RoomLifecycleStatus.READY_TO_START,
+            lifecycleStatus: ROOM_LIFECYCLE_STATUS.READY_TO_START,
           },
         });
       }

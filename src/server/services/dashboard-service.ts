@@ -1,6 +1,7 @@
-import { ApplicantStatus, JobStatus, RoomLifecycleStatus } from "@prisma/client";
+import { ApplicantStatus, JobStatus } from "@prisma/client";
 
 import { db } from "@/lib/db";
+import { ROOM_LIFECYCLE_STATUS } from "@/lib/prisma-enums";
 
 function buildAlertScopeKey(log: {
   traderId: string | null;
@@ -62,9 +63,9 @@ export async function getDashboardSummary() {
   return {
     rooms,
     roomTotals: {
-      running: rooms.filter((room) => room.lifecycleStatus === RoomLifecycleStatus.ACTIVE).length,
-      signupOpen: rooms.filter((room) => room.lifecycleStatus === RoomLifecycleStatus.SIGNUP_OPEN).length,
-      readyToStart: rooms.filter((room) => room.lifecycleStatus === RoomLifecycleStatus.READY_TO_START).length,
+      running: rooms.filter((room) => room.lifecycleStatus === ROOM_LIFECYCLE_STATUS.ACTIVE).length,
+      signupOpen: rooms.filter((room) => room.lifecycleStatus === ROOM_LIFECYCLE_STATUS.SIGNUP_OPEN).length,
+      readyToStart: rooms.filter((room) => room.lifecycleStatus === ROOM_LIFECYCLE_STATUS.READY_TO_START).length,
       traders: traderCount,
       pendingApplicants: applicantCounts[ApplicantStatus.PENDING] ?? 0,
       contactedApplicants: applicantCounts[ApplicantStatus.INVITATION_SENT] ?? 0,

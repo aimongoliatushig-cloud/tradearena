@@ -1,4 +1,4 @@
-import { ApplicantStatus, NotificationChannel, NotificationKind, NotificationStatus } from "@prisma/client";
+import { ApplicantStatus, NotificationChannel, NotificationStatus, type NotificationKind } from "@prisma/client";
 import nodemailer, { type Transporter } from "nodemailer";
 
 import { db } from "@/lib/db";
@@ -7,6 +7,7 @@ import { env } from "@/lib/env";
 import { formatCurrency, formatDateTime, formatPercent } from "@/lib/format";
 import { leaderboardTraderOrderBy } from "@/lib/leaderboard";
 import { accountSizeLabels, stepLabels } from "@/lib/labels";
+import { NOTIFICATION_KIND } from "@/lib/prisma-enums";
 import { formatUsd } from "@/lib/pricing";
 import { getPaymentDetailsConfig, getRoomReadyEmailConfig } from "@/server/services/settings-service";
 
@@ -147,7 +148,7 @@ export async function sendSignupNotifications(applicantId: string) {
   await sendLoggedEmail({
     applicantId: applicant.id,
     roomId: applicant.room.id,
-    kind: NotificationKind.GENERAL_UPDATE,
+    kind: NOTIFICATION_KIND.GENERAL_UPDATE,
     recipient: applicant.email,
     subject: `${applicant.room.title} signup received`,
     message: [
@@ -210,7 +211,7 @@ export async function sendRoomReadyNotifications(roomId: string) {
     await sendLoggedEmail({
       applicantId: recipient.id,
       roomId: room.id,
-      kind: NotificationKind.ROOM_READY,
+      kind: NOTIFICATION_KIND.ROOM_READY,
       recipient: recipient.email,
       subject,
       message,
@@ -261,7 +262,7 @@ export async function sendRoomPerformanceReportIfDue(roomId: string, minuteKey: 
   const existingDispatch = await db.notificationDispatch.findFirst({
     where: {
       roomId,
-      kind: NotificationKind.GENERAL_UPDATE,
+      kind: NOTIFICATION_KIND.GENERAL_UPDATE,
       subject,
     },
   });
@@ -312,7 +313,7 @@ export async function sendRoomPerformanceReportIfDue(roomId: string, minuteKey: 
     await sendLoggedEmail({
       applicantId: applicant.id,
       roomId: room.id,
-      kind: NotificationKind.GENERAL_UPDATE,
+      kind: NOTIFICATION_KIND.GENERAL_UPDATE,
       recipient: applicant.email,
       subject,
       message: [

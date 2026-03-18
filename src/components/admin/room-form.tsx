@@ -1,9 +1,10 @@
-import { AccountSize, ChallengeStep, RoomLifecycleStatus, RoomPublicStatus, type ChallengeRoom } from "@prisma/client";
+import { ChallengeStep, RoomPublicStatus, type ChallengeRoom } from "@prisma/client";
 
 import { ScheduleTimesInput } from "@/components/admin/schedule-times-input";
 import { SubmitButton } from "@/components/forms/submit-button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { accountSizeLabels, roomPublicStatusLabels, roomStatusLabels, stepLabels } from "@/lib/labels";
+import { ACCOUNT_SIZE, ACCOUNT_SIZE_OPTIONS, ROOM_LIFECYCLE_STATUS, ROOM_STATUS_OPTIONS } from "@/lib/prisma-enums";
 import { getDefaultEntryFeeUsd } from "@/lib/pricing";
 import { saveRoomFormAction } from "@/server/actions/admin-actions";
 import { getDefaultScheduleConfig } from "@/server/services/settings-service";
@@ -55,7 +56,7 @@ export async function RoomForm({
                 type="number"
                 min={0}
                 step="0.01"
-                defaultValue={room?.entryFeeUsd ?? getDefaultEntryFeeUsd(room?.accountSize ?? AccountSize.SIZE_10K)}
+                defaultValue={room?.entryFeeUsd ?? getDefaultEntryFeeUsd(room?.accountSize ?? ACCOUNT_SIZE.SIZE_10K)}
                 className="flex h-11 w-full rounded-2xl border border-white/12 bg-slate-950/60 px-4 text-white outline-none"
               />
             </div>
@@ -72,8 +73,8 @@ export async function RoomForm({
           </div>
 
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <SelectField name="accountSize" label="Account size" defaultValue={room?.accountSize ?? AccountSize.SIZE_10K}>
-              {Object.values(AccountSize).map((value) => (
+            <SelectField name="accountSize" label="Account size" defaultValue={room?.accountSize ?? ACCOUNT_SIZE.SIZE_10K}>
+              {ACCOUNT_SIZE_OPTIONS.map((value) => (
                 <option key={value} value={value}>
                   {accountSizeLabels[value]}
                 </option>
@@ -96,9 +97,9 @@ export async function RoomForm({
             <SelectField
               name="lifecycleStatus"
               label="Room status"
-              defaultValue={room?.lifecycleStatus ?? RoomLifecycleStatus.SIGNUP_OPEN}
+              defaultValue={room?.lifecycleStatus ?? ROOM_LIFECYCLE_STATUS.SIGNUP_OPEN}
             >
-              {Object.values(RoomLifecycleStatus).map((value) => (
+              {ROOM_STATUS_OPTIONS.map((value) => (
                 <option key={value} value={value}>
                   {roomStatusLabels[value]}
                 </option>

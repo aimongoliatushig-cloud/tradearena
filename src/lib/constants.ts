@@ -1,21 +1,6 @@
-import { AccountSize, ApplicantStatus, ChallengeStep, RoomLifecycleStatus, RoomPublicStatus } from "@prisma/client";
+import { ApplicantStatus, ChallengeStep, RoomPublicStatus } from "@prisma/client";
 
-export const ACCOUNT_SIZE_OPTIONS = [
-  AccountSize.SIZE_10K,
-  AccountSize.SIZE_25K,
-  AccountSize.SIZE_50K,
-  AccountSize.SIZE_100K,
-  AccountSize.SIZE_200K,
-] as const;
-
-export const ROOM_STATUS_OPTIONS = [
-  RoomLifecycleStatus.SIGNUP_OPEN,
-  RoomLifecycleStatus.READY_TO_START,
-  RoomLifecycleStatus.ACTIVE,
-  RoomLifecycleStatus.EXPIRED,
-  RoomLifecycleStatus.COMPLETED,
-  RoomLifecycleStatus.ARCHIVED,
-] as const;
+export { ACCOUNT_SIZE_OPTIONS, ROOM_STATUS_OPTIONS } from "@/lib/prisma-enums";
 
 export const ROOM_PUBLIC_STATUS_OPTIONS = [RoomPublicStatus.PUBLIC, RoomPublicStatus.HIDDEN] as const;
 export const STEP_OPTIONS = [ChallengeStep.STEP_1, ChallengeStep.STEP_2] as const;

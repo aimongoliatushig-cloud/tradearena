@@ -1,73 +1,75 @@
 import {
-  AccountSize,
   ApplicantStatus,
   ChallengeStep,
   JobStatus,
-  NotificationKind,
   NotificationChannel,
   NotificationStatus,
-  RoomLifecycleStatus,
   RoomPublicStatus,
+  type AccountSize,
+  type NotificationKind,
+  type RoomLifecycleStatus,
 } from "@prisma/client";
 
+import { ACCOUNT_SIZE, NOTIFICATION_KIND, ROOM_LIFECYCLE_STATUS } from "@/lib/prisma-enums";
+
 export const accountSizeLabels: Record<AccountSize, string> = {
-  [AccountSize.SIZE_10K]: "10K",
-  [AccountSize.SIZE_25K]: "25K",
-  [AccountSize.SIZE_50K]: "50K",
-  [AccountSize.SIZE_100K]: "100K",
-  [AccountSize.SIZE_200K]: "200K",
+  [ACCOUNT_SIZE.SIZE_10K]: "10K",
+  [ACCOUNT_SIZE.SIZE_25K]: "25K",
+  [ACCOUNT_SIZE.SIZE_50K]: "50K",
+  [ACCOUNT_SIZE.SIZE_100K]: "100K",
+  [ACCOUNT_SIZE.SIZE_200K]: "200K",
 };
 
 export const stepLabels: Record<ChallengeStep, string> = {
-  [ChallengeStep.STEP_1]: "ÐÐ»Ñ…Ð°Ð¼ 1",
-  [ChallengeStep.STEP_2]: "ÐÐ»Ñ…Ð°Ð¼ 2",
+  [ChallengeStep.STEP_1]: "Step 1",
+  [ChallengeStep.STEP_2]: "Step 2",
 };
 
 export const roomStatusLabels: Record<RoomLifecycleStatus, string> = {
-  [RoomLifecycleStatus.SIGNUP_OPEN]: "Ð‘Ò¯Ñ€Ñ‚Ð³ÑÐ» Ð½ÑÑÐ»Ñ‚Ñ‚ÑÐ¹",
-  [RoomLifecycleStatus.READY_TO_START]: "Ð­Ñ…Ð»ÑÑ…ÑÐ´ Ð±ÑÐ»ÑÐ½",
-  [RoomLifecycleStatus.ACTIVE]: "Ð˜Ð´ÑÐ²Ñ…Ñ‚ÑÐ¹",
-  [RoomLifecycleStatus.EXPIRED]: "Ð¥ÑƒÐ³Ð°Ñ†Ð°Ð° Ð´ÑƒÑƒÑÑÐ°Ð½",
-  [RoomLifecycleStatus.COMPLETED]: "Ð”ÑƒÑƒÑÑÐ°Ð½",
-  [RoomLifecycleStatus.ARCHIVED]: "ÐÑ€Ñ…Ð¸Ð²Ð»Ð°ÑÐ°Ð½",
+  [ROOM_LIFECYCLE_STATUS.SIGNUP_OPEN]: "Signup open",
+  [ROOM_LIFECYCLE_STATUS.READY_TO_START]: "Ready to start",
+  [ROOM_LIFECYCLE_STATUS.ACTIVE]: "Active",
+  [ROOM_LIFECYCLE_STATUS.EXPIRED]: "Expired",
+  [ROOM_LIFECYCLE_STATUS.COMPLETED]: "Completed",
+  [ROOM_LIFECYCLE_STATUS.ARCHIVED]: "Archived",
 };
 
 export const roomPublicStatusLabels: Record<RoomPublicStatus, string> = {
-  [RoomPublicStatus.PUBLIC]: "ÐÑÑÐ»Ñ‚Ñ‚ÑÐ¹",
-  [RoomPublicStatus.HIDDEN]: "ÐÑƒÑƒÑ†",
+  [RoomPublicStatus.PUBLIC]: "Public",
+  [RoomPublicStatus.HIDDEN]: "Hidden",
 };
 
 export const applicantStatusLabels: Record<ApplicantStatus, string> = {
-  [ApplicantStatus.PENDING]: "Ð¥Ò¯Ð»ÑÑÐ³Ð´ÑÐ¶ Ð±Ð°Ð¹Ð½Ð°",
-  [ApplicantStatus.ACCEPTED]: "Ð—Ó©Ð²ÑˆÓ©Ó©Ñ€ÑÓ©Ð½",
-  [ApplicantStatus.ASSIGNED]: "ÐžÐ½Ð¾Ð¾ÑÐ¾Ð½",
-  [ApplicantStatus.INVITATION_SENT]: "Ð£Ñ€Ð¸Ð»Ð³Ð° Ð¸Ð»Ð³ÑÑÑÑÐ½",
-  [ApplicantStatus.JOINED]: "ÐÑÐ³Ð´ÑÑÐ½",
-  [ApplicantStatus.REJECTED]: "Ð¢Ð°Ñ‚Ð³Ð°Ð»Ð·ÑÐ°Ð½",
+  [ApplicantStatus.PENDING]: "Pending",
+  [ApplicantStatus.ACCEPTED]: "Accepted",
+  [ApplicantStatus.ASSIGNED]: "Assigned",
+  [ApplicantStatus.INVITATION_SENT]: "Invitation sent",
+  [ApplicantStatus.JOINED]: "Joined",
+  [ApplicantStatus.REJECTED]: "Rejected",
 };
 
 export const jobStatusLabels: Record<JobStatus, string> = {
-  [JobStatus.RUNNING]: "ÐÐ¶Ð¸Ð»Ð»Ð°Ð¶ Ð±Ð°Ð¹Ð½Ð°",
-  [JobStatus.SUCCESS]: "ÐÐ¼Ð¶Ð¸Ð»Ñ‚Ñ‚Ð°Ð¹",
-  [JobStatus.FAILED]: "ÐÐ¼Ð¶Ð¸Ð»Ñ‚Ð³Ò¯Ð¹",
-  [JobStatus.PARTIAL]: "Ð¥ÑÑÑÐ³Ñ‡Ð»ÑÐ½",
-  [JobStatus.SKIPPED]: "ÐÐ»Ð³Ð°ÑÑÐ°Ð½",
+  [JobStatus.RUNNING]: "Running",
+  [JobStatus.SUCCESS]: "Success",
+  [JobStatus.FAILED]: "Failed",
+  [JobStatus.PARTIAL]: "Partial",
+  [JobStatus.SKIPPED]: "Skipped",
 };
 
 export const notificationChannelLabels: Record<NotificationChannel, string> = {
-  [NotificationChannel.EMAIL]: "Ð˜Ð¼ÑÐ¹Ð»",
+  [NotificationChannel.EMAIL]: "Email",
   [NotificationChannel.TELEGRAM]: "Telegram",
 };
 
 export const notificationKindLabels: Record<NotificationKind, string> = {
-  [NotificationKind.ROOM_INVITATION]: "Room invitation",
-  [NotificationKind.ROOM_READY]: "Room ready",
-  [NotificationKind.GENERAL_UPDATE]: "General update",
+  [NOTIFICATION_KIND.ROOM_INVITATION]: "Room invitation",
+  [NOTIFICATION_KIND.ROOM_READY]: "Room ready",
+  [NOTIFICATION_KIND.GENERAL_UPDATE]: "General update",
 };
 
 export const notificationStatusLabels: Record<NotificationStatus, string> = {
-  [NotificationStatus.PENDING]: "Ð¥Ò¯Ð»ÑÑÐ³Ð´ÑÐ¶ Ð±Ð°Ð¹Ð½Ð°",
-  [NotificationStatus.SENT]: "Ð˜Ð»Ð³ÑÑÑÑÐ½",
-  [NotificationStatus.FAILED]: "ÐÐ»Ð´Ð°Ð°",
-  [NotificationStatus.SKIPPED]: "ÐÐ»Ð³Ð°ÑÑÐ°Ð½",
+  [NotificationStatus.PENDING]: "Pending",
+  [NotificationStatus.SENT]: "Sent",
+  [NotificationStatus.FAILED]: "Failed",
+  [NotificationStatus.SKIPPED]: "Skipped",
 };

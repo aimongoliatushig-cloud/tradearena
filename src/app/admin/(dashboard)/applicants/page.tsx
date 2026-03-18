@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import Link from "next/link";
-import { AccountSize, ApplicantStatus, NotificationStatus } from "@prisma/client";
+import { ApplicantStatus, NotificationStatus, type AccountSize } from "@prisma/client";
 
 import { FlashMessage } from "@/components/shared/flash-message";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -13,6 +13,7 @@ import {
   notificationKindLabels,
   notificationStatusLabels,
 } from "@/lib/labels";
+import { ACCOUNT_SIZE_OPTIONS } from "@/lib/prisma-enums";
 import { formatDateTime } from "@/lib/format";
 import { getApplicantBuckets, listApplicants } from "@/server/services/applicant-service";
 import { listRecentNotificationDispatches } from "@/server/services/notification-service";
@@ -62,7 +63,7 @@ export default async function AdminApplicantsPage({
         <Link href="/admin/applicants" className="rounded-full border border-white/12 px-4 py-2 text-sm text-white/70 hover:bg-white/5">
           All
         </Link>
-        {Object.values(AccountSize).map((size) => (
+        {ACCOUNT_SIZE_OPTIONS.map((size) => (
           <Link
             key={size}
             href={`/admin/applicants?size=${size}`}

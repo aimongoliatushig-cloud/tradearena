@@ -1,11 +1,11 @@
 import {
-  AccountSize,
   ApplicantStatus,
   ChallengeStep,
-  RoomLifecycleStatus,
   RoomPublicStatus,
 } from "@prisma/client";
 import { z } from "zod";
+
+import { ACCOUNT_SIZE_OPTIONS, ROOM_STATUS_OPTIONS } from "@/lib/prisma-enums";
 
 const ftmoUrlSchema = z
   .string()
@@ -35,13 +35,13 @@ export const roomFormSchema = z
     id: z.string().optional(),
     title: z.string().trim().min(3, "Room title must be at least 3 characters."),
     description: z.string().trim().max(1000).optional(),
-    accountSize: z.nativeEnum(AccountSize),
+    accountSize: z.enum(ACCOUNT_SIZE_OPTIONS),
     step: z.nativeEnum(ChallengeStep),
     entryFeeUsd: z.coerce.number().min(0),
     startDate: z.coerce.date(),
     endDate: z.coerce.date(),
     publicStatus: z.nativeEnum(RoomPublicStatus),
-    lifecycleStatus: z.nativeEnum(RoomLifecycleStatus),
+    lifecycleStatus: z.enum(ROOM_STATUS_OPTIONS),
     maxTraderCapacity: z.coerce.number().int().min(1).max(50),
     updateTimesInput: z.string().trim().optional(),
     updateTimezone: z.string().trim().min(2),
@@ -73,7 +73,7 @@ export const applicantStatusSchema = z.object({
 });
 
 export const invitationSchema = z.object({
-  accountSize: z.nativeEnum(AccountSize),
+  accountSize: z.enum(ACCOUNT_SIZE_OPTIONS),
   roomLink: z.string().trim().url("Enter a valid room URL."),
   subject: z.string().trim().min(3),
   extraInstructions: z.string().trim().min(5),
