@@ -2,6 +2,7 @@ import { FetchSource, JobStatus, JobType, RoomLifecycleStatus } from "@prisma/cl
 
 import { db } from "@/lib/db";
 import { dayjs } from "@/lib/dayjs";
+import { sendRoomPerformanceReportIfDue } from "@/server/services/notification-service";
 import { getDefaultScheduleConfig } from "@/server/services/settings-service";
 import { refreshRoomStats, syncRoomLifecycleStatus } from "@/server/services/trader-service";
 
@@ -71,16 +72,23 @@ export async function runSchedulerTick(reason = "worker") {
   });
 
   const dueRooms: string[] = [];
+  const reportDueRooms: Array<{ id: string; timezone: string }> = [];
 
   for (const room of rooms) {
     const schedule = room.updateTimes.length ? room.updateTimes : defaults.updateTimes;
     const timezone = room.updateTimezone || defaults.timezone;
 
     if (!isRoomDue(now, schedule, timezone)) {
-      continue;
+      if (dayjs(now).tz(timezone).format("HH:mm") !== "09:00" && dayjs(now).tz(timezone).format("HH:mm") !== "21:00") {
+        continue;
+      }
     }
 
-    dueRooms.push(room.id);
+    if (isRoomDue(now, schedule, timezone)) {
+      dueRooms.push(room.id);
+    }
+
+    reportDueRooms.push({ id: room.id, timezone });
   }
 
   const startedRooms: string[] = [];
@@ -127,6 +135,10 @@ export async function runSchedulerTick(reason = "worker") {
         finishedAt: new Date(),
       },
     });
+  }
+
+  for (const room of reportDueRooms) {
+    await sendRoomPerformanceReportIfDue(room.id, minuteKey, room.timezone);
   }
 
   return {

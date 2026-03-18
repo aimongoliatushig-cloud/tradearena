@@ -1,18 +1,28 @@
 "use client";
 
 import { useActionState } from "react";
+import type { AccountSize, ChallengeStep } from "@prisma/client";
 
 import { SubmitButton } from "@/components/forms/submit-button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { ACCOUNT_SIZE_OPTIONS } from "@/lib/constants";
-import { accountSizeLabels } from "@/lib/labels";
+import { accountSizeLabels, stepLabels } from "@/lib/labels";
 import { defaultActionState } from "@/server/actions/action-state";
 import { submitApplicantAction } from "@/server/actions/public-actions";
 
-export function ApplyForm() {
+type SignupRoomOption = {
+  accountSize: AccountSize;
+  activeApplicantCount: number;
+  id: string;
+  maxTraderCapacity: number;
+  step: ChallengeStep;
+  title: string;
+};
+
+export function ApplyForm({ rooms }: { rooms: SignupRoomOption[] }) {
   const [state, action] = useActionState(submitApplicantAction, defaultActionState);
+  const hasRooms = rooms.length > 0;
 
   return (
     <Card className="rounded-[2rem] border border-white/10 bg-white/[0.035] shadow-[0_24px_60px_rgba(0,0,0,0.3)] backdrop-blur-xl">
@@ -21,6 +31,30 @@ export function ApplyForm() {
       </CardHeader>
       <CardContent>
         <form action={action} className="space-y-4">
+          <div className="space-y-2">
+            <label className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/52">Сонгох өрөө</label>
+            <select
+              name="roomId"
+              className="flex h-12 w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 text-white outline-none transition focus:border-[#3daafe] focus:ring-3 focus:ring-[#0781fe]/25"
+              defaultValue={hasRooms ? rooms[0].id : ""}
+              disabled={!hasRooms}
+            >
+              {hasRooms ? (
+                rooms.map((room) => (
+                  <option key={room.id} value={room.id} className="bg-[#101114]">
+                    {room.title} | {accountSizeLabels[room.accountSize]} | {stepLabels[room.step]} | {room.activeApplicantCount}/
+                    {room.maxTraderCapacity}
+                  </option>
+                ))
+              ) : (
+                <option value="" className="bg-[#101114]">
+                  Идэвхтэй өрөө алга
+                </option>
+              )}
+            </select>
+            {state.fieldErrors?.roomId ? <p className="text-xs text-rose-300">{state.fieldErrors.roomId[0]}</p> : null}
+          </div>
+
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <label className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/52">Овог нэр</label>
@@ -47,24 +81,6 @@ export function ApplyForm() {
           </div>
 
           <div className="space-y-2">
-            <label className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/52">Хүсэж буй account size</label>
-            <select
-              name="desiredAccountSize"
-              className="flex h-12 w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 text-white outline-none transition focus:border-[#3daafe] focus:ring-3 focus:ring-[#0781fe]/25"
-              defaultValue={ACCOUNT_SIZE_OPTIONS[0]}
-            >
-              {ACCOUNT_SIZE_OPTIONS.map((size) => (
-                <option key={size} value={size} className="bg-[#101114]">
-                  {accountSizeLabels[size]}
-                </option>
-              ))}
-            </select>
-            {state.fieldErrors?.desiredAccountSize ? (
-              <p className="text-xs text-rose-300">{state.fieldErrors.desiredAccountSize[0]}</p>
-            ) : null}
-          </div>
-
-          <div className="space-y-2">
             <label className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/52">Нэмэлт тайлбар</label>
             <Textarea name="note" placeholder="Өмнөх туршлага, асуулт, эсвэл нэмэлт мэдээлэл..." />
           </div>
@@ -81,7 +97,9 @@ export function ApplyForm() {
             </div>
           ) : null}
 
-          <SubmitButton className="w-full justify-center">Өргөдөл илгээх</SubmitButton>
+          <SubmitButton className="w-full justify-center" disabled={!hasRooms}>
+            Өргөдөл илгээх
+          </SubmitButton>
         </form>
       </CardContent>
     </Card>

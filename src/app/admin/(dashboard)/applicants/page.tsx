@@ -97,6 +97,7 @@ export default async function AdminApplicantsPage({
                 <div className="mt-1 text-sm text-white/55">
                   {applicant.email} | {applicant.phoneNumber} | {applicant.telegramUsername || "Telegram мэдээлэлгүй"}
                 </div>
+                <div className="mt-1 text-sm text-white/45">{applicant.room?.title ?? "Room not selected"}</div>
                 <div className="mt-2 flex flex-wrap items-center gap-2">
                   <StatusBadge label={accountSizeLabels[applicant.desiredAccountSize]} tone="info" />
                   <StatusBadge label={applicantStatusLabels[applicant.status]} tone={applicant.status === ApplicantStatus.REJECTED ? "danger" : "muted"} />

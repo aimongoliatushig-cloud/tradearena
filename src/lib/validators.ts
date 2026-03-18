@@ -26,7 +26,7 @@ export const applicantFormSchema = z.object({
   email: z.string().trim().email("Имэйл буруу байна."),
   phoneNumber: z.string().trim().min(6, "Утасны дугаар буруу байна."),
   telegramUsername: z.string().trim().optional(),
-  desiredAccountSize: z.nativeEnum(AccountSize),
+  roomId: z.string().cuid("Өрөө сонгоно уу."),
   note: z.string().trim().max(500, "Тэмдэглэл 500 тэмдэгтээс ихгүй байна.").optional(),
 });
 

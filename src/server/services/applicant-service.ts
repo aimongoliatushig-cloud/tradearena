@@ -1,9 +1,18 @@
-import { AccountSize, ApplicantStatus, NotificationChannel, NotificationKind, NotificationStatus } from "@prisma/client";
+import {
+  AccountSize,
+  ApplicantStatus,
+  NotificationChannel,
+  NotificationKind,
+  NotificationStatus,
+  RoomLifecycleStatus,
+  RoomPublicStatus,
+} from "@prisma/client";
 import nodemailer from "nodemailer";
 
 import { APPLY_RATE_LIMIT_PER_HOUR } from "@/lib/constants";
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
+import { sendSignupNotifications } from "@/server/services/notification-service";
 import { getInvitationTemplates } from "@/server/services/settings-service";
 
 export async function listApplicants(accountSize?: AccountSize) {
@@ -47,7 +56,7 @@ export async function createApplicant(input: {
   email: string;
   phoneNumber: string;
   telegramUsername?: string;
-  desiredAccountSize: AccountSize;
+  roomId: string;
   note?: string;
   ipAddress: string;
 }) {
@@ -73,21 +82,52 @@ export async function createApplicant(input: {
       ipAddress: input.ipAddress,
       metadata: {
         email: input.email,
-        desiredAccountSize: input.desiredAccountSize,
+        roomId: input.roomId,
       },
     },
   });
 
-  return db.applicant.create({
+  const room = await db.challengeRoom.findFirst({
+    where: {
+      id: input.roomId,
+      lifecycleStatus: RoomLifecycleStatus.ACTIVE,
+      publicStatus: RoomPublicStatus.PUBLIC,
+    },
+    include: {
+      applicants: {
+        where: {
+          status: {
+            not: ApplicantStatus.REJECTED,
+          },
+        },
+        select: { id: true },
+      },
+    },
+  });
+
+  if (!room) {
+    throw new Error("Сонгосон өрөө идэвхгүй эсвэл олдсонгүй.");
+  }
+
+  if (room.applicants.length >= room.maxTraderCapacity) {
+    throw new Error("Сонгосон өрөө дүүрсэн байна. Өөр өрөө сонгоно уу.");
+  }
+
+  const applicant = await db.applicant.create({
     data: {
       fullName: input.fullName,
       email: input.email,
       phoneNumber: input.phoneNumber,
       telegramUsername: input.telegramUsername || null,
-      desiredAccountSize: input.desiredAccountSize,
+      desiredAccountSize: room.accountSize,
+      roomId: room.id,
       note: input.note || null,
     },
   });
+
+  await sendSignupNotifications(applicant.id);
+
+  return applicant;
 }
 
 export async function updateApplicantStatus(input: {
@@ -99,7 +139,7 @@ export async function updateApplicantStatus(input: {
     where: { id: input.applicantId },
     data: {
       status: input.status,
-      roomId: input.roomId || null,
+      ...(input.roomId !== undefined ? { roomId: input.roomId || null } : {}),
       invitationSentAt: input.status === ApplicantStatus.INVITATION_SENT ? new Date() : undefined,
       joinedAt: input.status === ApplicantStatus.JOINED ? new Date() : undefined,
     },

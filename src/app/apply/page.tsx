@@ -8,9 +8,10 @@ import { MetricCard } from "@/components/shared/metric-card";
 import { accountSizeLabels } from "@/lib/labels";
 import { formatUsd, TRADEARENA_ENTRY_FEES, TRADEARENA_PAYMENT_DETAILS } from "@/lib/pricing";
 import { getApplicantBuckets } from "@/server/services/applicant-service";
+import { listSignupRooms } from "@/server/services/room-service";
 
 export default async function ApplyPage() {
-  const buckets = await getApplicantBuckets();
+  const [buckets, signupRooms] = await Promise.all([getApplicantBuckets(), listSignupRooms()]);
   const entryFees = buckets
     .map((bucket) => {
       const label = accountSizeLabels[bucket.accountSize];
@@ -98,7 +99,7 @@ export default async function ApplyPage() {
           </div>
         </div>
 
-        <ApplyForm />
+        <ApplyForm rooms={signupRooms} />
       </section>
     </PublicShell>
   );

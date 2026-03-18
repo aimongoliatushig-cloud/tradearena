@@ -1,4 +1,4 @@
-import { RoomLifecycleStatus, RoomPublicStatus, type ChallengeRoom } from "@prisma/client";
+import { ApplicantStatus, RoomLifecycleStatus, RoomPublicStatus, type ChallengeRoom } from "@prisma/client";
 
 import { db } from "@/lib/db";
 import { normalizeFtmoUrl, parseScheduleInput } from "@/lib/validators";
@@ -68,6 +68,36 @@ export async function listPublicRooms() {
   });
 
   return rooms.sort((left, right) => sortRooms(left, right));
+}
+
+export async function listSignupRooms() {
+  const rooms = await db.challengeRoom.findMany({
+    where: {
+      publicStatus: RoomPublicStatus.PUBLIC,
+      lifecycleStatus: RoomLifecycleStatus.ACTIVE,
+    },
+    include: {
+      applicants: {
+        where: {
+          status: {
+            not: ApplicantStatus.REJECTED,
+          },
+        },
+        select: { id: true },
+      },
+    },
+    orderBy: [{ startDate: "asc" }, { createdAt: "asc" }],
+  });
+
+  return rooms.map((room) => ({
+    id: room.id,
+    title: room.title,
+    slug: room.slug,
+    accountSize: room.accountSize,
+    step: room.step,
+    maxTraderCapacity: room.maxTraderCapacity,
+    activeApplicantCount: room.applicants.length,
+  }));
 }
 
 export async function getPublicHomepageData() {

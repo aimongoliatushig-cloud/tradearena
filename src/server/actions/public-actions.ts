@@ -21,7 +21,7 @@ export async function submitApplicantAction(_: ActionState, formData: FormData):
     email: formData.get("email"),
     phoneNumber: formData.get("phoneNumber"),
     telegramUsername: formData.get("telegramUsername") || undefined,
-    desiredAccountSize: formData.get("desiredAccountSize"),
+    roomId: formData.get("roomId"),
     note: formData.get("note") || undefined,
   });
 
