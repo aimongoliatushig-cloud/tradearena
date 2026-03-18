@@ -19,10 +19,10 @@ export const DEFAULT_ENTRY_FEE_BY_ACCOUNT_SIZE: Record<AccountSize, number> = {
 };
 
 export const DEFAULT_PAYMENT_DETAILS = {
-  bankName: "Golomt bank",
+  bankName: "Голомт банк",
   accountHolder: "Battushig",
   accountNumber: "MN530015001605199269",
-  transactionValueHint: "Use your room title and full name as the payment reference.",
+  transactionValueHint: "Гүйлгээний утга дээр өрөөний нэр болон овог нэрээ бичнэ үү.",
 } as const;
 
 export function getDefaultEntryFeeUsd(accountSize: AccountSize) {

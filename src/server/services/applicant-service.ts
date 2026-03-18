@@ -75,7 +75,7 @@ export async function createApplicant(input: {
   });
 
   if (recentAttempts >= APPLY_RATE_LIMIT_PER_HOUR) {
-    throw new Error("Too many attempts. Please wait and try again.");
+    throw new Error("Хэт олон удаа оролдлоо. Түр хүлээгээд дахин оролдоно уу.");
   }
 
   await db.submissionAttempt.create({
@@ -111,11 +111,11 @@ export async function createApplicant(input: {
       });
 
       if (!room) {
-        throw new Error("This room is closed for signup.");
+        throw new Error("Энэ өрөөний бүртгэл хаагдсан байна.");
       }
 
       if (room.applicants.length >= room.maxTraderCapacity) {
-        throw new Error("This room is already full. Choose a different room.");
+        throw new Error("Энэ өрөө дүүрсэн байна. Өөр өрөө сонгоно уу.");
       }
 
       const existingApplicant = await tx.applicant.findFirst({
@@ -136,7 +136,7 @@ export async function createApplicant(input: {
       });
 
       if (existingApplicant) {
-        throw new Error(`You already have an active signup for ${existingApplicant.room?.title ?? "this account size"}.`);
+        throw new Error(`Та ${existingApplicant.room?.title ?? "энэ ангилалд"} аль хэдийн идэвхтэй бүртгэлтэй байна.`);
       }
 
       const applicant = await tx.applicant.create({

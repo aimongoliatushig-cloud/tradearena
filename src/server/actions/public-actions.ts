@@ -18,7 +18,7 @@ export async function submitApplicantAction(_: ActionState, formData: FormData):
   if (!userId) {
     return {
       status: "error",
-      message: "Please sign in before joining a room.",
+      message: "Өрөөнд бүртгүүлэхийн өмнө нэвтэрнэ үү.",
     };
   }
 
@@ -34,7 +34,7 @@ export async function submitApplicantAction(_: ActionState, formData: FormData):
   if (!parsed.success) {
     return {
       status: "error",
-      message: "Please review the form fields.",
+      message: "Маягтын талбаруудаа шалгана уу.",
       fieldErrors: parsed.error.flatten().fieldErrors,
     };
   }
@@ -52,12 +52,12 @@ export async function submitApplicantAction(_: ActionState, formData: FormData):
 
     return {
       status: "success",
-      message: "Your signup was received. When the room reaches 10 traders, we will email you to pay the entry fee and prepare to start.",
+      message: "Таны бүртгэлийг хүлээн авлаа. Өрөө 10 трейдертэй болмогц орох хураамж төлөх болон эхлэх бэлтгэлийн мэдээллийг и-мэйлээр илгээнэ.",
     };
   } catch (error) {
     return {
       status: "error",
-      message: error instanceof Error ? error.message : "Failed to submit your signup.",
+      message: error instanceof Error ? error.message : "Бүртгэлийг илгээж чадсангүй.",
     };
   }
 }

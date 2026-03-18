@@ -38,19 +38,19 @@ export function ApplyForm({ rooms, viewer }: { rooms: SignupRoomOption[]; viewer
     return (
       <Card className="rounded-[2rem] border border-white/10 bg-white/[0.035] shadow-[0_24px_60px_rgba(0,0,0,0.3)] backdrop-blur-xl">
         <CardHeader>
-          <CardTitle className="text-2xl tracking-[-0.03em] text-white">Sign in to join a room</CardTitle>
+          <CardTitle className="text-2xl tracking-[-0.03em] text-white">Өрөөнд бүртгүүлэхийн тулд нэвтрэнэ үү</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm leading-7 text-white/62">
-            Traders need a Clerk account first. After you sign in, you can choose one of the open rooms, see the entry price,
-            and submit your phone, email, and Telegram username.
+            Эхлээд Clerk хэрэглэгчийн бүртгэлтэй байх шаардлагатай. Нэвтэрсний дараа нээлттэй өрөөнөөс сонгож, орох хураамжийг харж,
+            утас, и-мэйл, Telegram нэрээ илгээнэ.
           </p>
           <div className="flex flex-wrap gap-3">
             <SignInButton mode="modal">
-              <button className={buttonVariants()}>Sign in</button>
+              <button className={buttonVariants()}>Нэвтрэх</button>
             </SignInButton>
             <SignUpButton mode="modal">
-              <button className={cn(buttonVariants({ variant: "outline" }), "border-[#2dd0b1]/45 text-white")}>Create account</button>
+              <button className={cn(buttonVariants({ variant: "outline" }), "border-[#2dd0b1]/45 text-white")}>Бүртгэл үүсгэх</button>
             </SignUpButton>
           </div>
         </CardContent>
@@ -63,13 +63,13 @@ export function ApplyForm({ rooms, viewer }: { rooms: SignupRoomOption[]; viewer
   return (
     <Card className="rounded-[2rem] border border-white/10 bg-white/[0.035] shadow-[0_24px_60px_rgba(0,0,0,0.3)] backdrop-blur-xl">
       <CardHeader>
-        <CardTitle className="text-2xl tracking-[-0.03em] text-white">Join a trader room</CardTitle>
+        <CardTitle className="text-2xl tracking-[-0.03em] text-white">Трейдерийн өрөөнд бүртгүүлэх</CardTitle>
         <p className="text-sm text-white/58">{activeViewer.email}</p>
       </CardHeader>
       <CardContent>
         <form action={action} className="space-y-4">
           <div className="space-y-2">
-            <label className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/52">Choose room</label>
+            <label className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/52">ӨРӨӨ СОНГОХ</label>
             <select
               name="roomId"
               className="flex h-12 w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 text-white outline-none transition focus:border-[#3daafe] focus:ring-3 focus:ring-[#0781fe]/25"
@@ -79,13 +79,13 @@ export function ApplyForm({ rooms, viewer }: { rooms: SignupRoomOption[]; viewer
               {hasRooms ? (
                 rooms.map((room) => (
                   <option key={room.id} value={room.id} className="bg-[#101114]">
-                    {accountSizeLabels[room.accountSize]} | {room.title} | {formatUsd(room.entryFeeUsd)} | {room.activeApplicantCount}/
-                    {room.maxTraderCapacity}
+                    {accountSizeLabels[room.accountSize]} | {room.title} | Хураамж {formatUsd(room.entryFeeUsd)} |{" "}
+                    {room.activeApplicantCount}/{room.maxTraderCapacity}
                   </option>
                 ))
               ) : (
                 <option value="" className="bg-[#101114]">
-                  No open signup rooms right now
+                  Одоогоор бүртгэл нээлттэй өрөө алга
                 </option>
               )}
             </select>
@@ -94,12 +94,12 @@ export function ApplyForm({ rooms, viewer }: { rooms: SignupRoomOption[]; viewer
 
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
-              <label className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/52">Full name</label>
-              <Input name="fullName" defaultValue={activeViewer.fullName} placeholder="Your full name" />
+              <label className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/52">ОВОГ НЭР</label>
+              <Input name="fullName" defaultValue={activeViewer.fullName} placeholder="Овог нэрээ оруулна уу" />
               {state.fieldErrors?.fullName ? <p className="text-xs text-rose-300">{state.fieldErrors.fullName[0]}</p> : null}
             </div>
             <div className="space-y-2">
-              <label className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/52">Email</label>
+              <label className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/52">И-МЭЙЛ</label>
               <Input name="email" type="email" defaultValue={activeViewer.email} placeholder="name@example.com" />
               {state.fieldErrors?.email ? <p className="text-xs text-rose-300">{state.fieldErrors.email[0]}</p> : null}
             </div>
@@ -107,25 +107,25 @@ export function ApplyForm({ rooms, viewer }: { rooms: SignupRoomOption[]; viewer
 
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
-              <label className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/52">Phone</label>
+              <label className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/52">УТАС</label>
               <Input name="phoneNumber" placeholder="+976..." />
               {state.fieldErrors?.phoneNumber ? <p className="text-xs text-rose-300">{state.fieldErrors.phoneNumber[0]}</p> : null}
             </div>
             <div className="space-y-2">
-              <label className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/52">Telegram username</label>
+              <label className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/52">TELEGRAM НЭР</label>
               <Input name="telegramUsername" placeholder="@username" />
               {state.fieldErrors?.telegramUsername ? <p className="text-xs text-rose-300">{state.fieldErrors.telegramUsername[0]}</p> : null}
             </div>
           </div>
 
           <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm leading-6 text-white/60">
-            After your signup is confirmed, you will wait in the room queue. When the room reaches 10 traders, we will email you to
-            pay the entry fee and get ready to start.
+            Таны бүртгэл баталгаажсаны дараа тухайн өрөөний хүлээлгийн жагсаалтад орно. Өрөө 10 трейдертэй болмогц орох хураамж төлөх
+            болон эхлэх бэлтгэлийн мэдээллийг и-мэйлээр илгээнэ.
           </div>
 
           <div className="space-y-2">
-            <label className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/52">Extra note</label>
-            <Textarea name="note" placeholder="Questions or anything the admin should know..." />
+            <label className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/52">НЭМЭЛТ ТАЙЛБАР</label>
+            <Textarea name="note" placeholder="Асуулт эсвэл админд мэдэгдэх зүйлээ бичнэ үү..." />
           </div>
 
           {state.message ? (
@@ -140,9 +140,7 @@ export function ApplyForm({ rooms, viewer }: { rooms: SignupRoomOption[]; viewer
             </div>
           ) : null}
 
-          <SubmitButton className="w-full justify-center" disabled={!hasRooms}>
-            Join room
-          </SubmitButton>
+          <SubmitButton className="w-full justify-center" disabled={!hasRooms}>Өрөөнд бүртгүүлэх</SubmitButton>
         </form>
       </CardContent>
     </Card>

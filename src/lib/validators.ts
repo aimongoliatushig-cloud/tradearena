@@ -22,12 +22,12 @@ export const adminLoginSchema = z.object({
 });
 
 export const applicantFormSchema = z.object({
-  fullName: z.string().trim().min(2, "Enter your full name."),
-  email: z.string().trim().email("Enter a valid email."),
-  phoneNumber: z.string().trim().min(6, "Enter a valid phone number."),
-  telegramUsername: z.string().trim().min(2, "Enter your Telegram username."),
-  roomId: z.string().cuid("Choose a room."),
-  note: z.string().trim().max(500, "Note must be 500 characters or less.").optional(),
+  fullName: z.string().trim().min(2, "Овог нэрээ оруулна уу."),
+  email: z.string().trim().email("Зөв и-мэйл хаяг оруулна уу."),
+  phoneNumber: z.string().trim().min(6, "Зөв утасны дугаар оруулна уу."),
+  telegramUsername: z.string().trim().min(2, "Telegram нэрээ оруулна уу."),
+  roomId: z.string().cuid("Өрөө сонгоно уу."),
+  note: z.string().trim().max(500, "Тайлбар 500 тэмдэгтээс ихгүй байна.").optional(),
 });
 
 export const roomFormSchema = z

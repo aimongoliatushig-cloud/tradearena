@@ -31,11 +31,11 @@ export default async function ApplyPage() {
       <section className="grid gap-8 lg:grid-cols-[0.92fr_1.08fr]">
         <div className="space-y-6">
           <div className="glass-panel p-8">
-            <div className="ftmo-kicker">Room Signup</div>
-            <h1 className="mt-4 text-4xl font-semibold tracking-[-0.04em] text-white">Join the next trader room</h1>
+            <div className="ftmo-kicker">ӨРӨӨНИЙ БҮРТГЭЛ</div>
+            <h1 className="mt-4 text-4xl font-semibold tracking-[-0.04em] text-white">Дараагийн трейдерийн өрөөнд бүртгүүлэх</h1>
             <p className="mt-3 max-w-xl text-sm leading-7 text-white/58">
-              Sign up with Clerk first, then choose one of the open rooms. Running rooms are closed for new registrations. When a room
-              reaches 10 traders, we will email everyone with the payment details and the start instructions.
+              Эхлээд Clerk-ээр хэрэглэгч болж бүртгүүлээд нэвтэрнэ. Дараа нь нээлттэй өрөөнөөс сонголтоо хийнэ. Явагдаж буй идэвхтэй
+              өрөөнүүд шинэ бүртгэл авахгүй. Өрөө 10 трейдертэй болмогц төлбөрийн мэдээлэл болон эхлэх зааврыг и-мэйлээр илгээнэ.
             </p>
           </div>
 
@@ -43,19 +43,19 @@ export default async function ApplyPage() {
             {signupRooms.map((room) => (
               <MetricCard
                 key={room.id}
-                label={`${accountSizeLabels[room.accountSize]} room`}
+                label={`${accountSizeLabels[room.accountSize]} өрөө`}
                 value={`${room.activeApplicantCount}/${room.maxTraderCapacity}`}
-                hint={`Entry fee ${formatUsd(room.entryFeeUsd)}`}
+                hint={`Орох хураамж ${formatUsd(room.entryFeeUsd)}`}
               />
             ))}
           </div>
 
           <div className="glass-panel p-6">
-            <div className="ftmo-kicker">Entry Payment</div>
-            <h2 className="mt-4 text-2xl font-semibold tracking-[-0.03em] text-white">Payment is only due when the room is full</h2>
+            <div className="ftmo-kicker">ТӨЛБӨР</div>
+            <h2 className="mt-4 text-2xl font-semibold tracking-[-0.03em] text-white">Өрөө дүүрсний дараа л төлбөр төлнө</h2>
             <p className="mt-3 text-sm leading-7 text-white/58">
-              You do not pay immediately. First you join an open room. Once that room reaches 10/10 traders, we email you that the room
-              is ready, ask you to pay the entry fee, and prepare you to start the challenge.
+              Та шууд төлбөр хийхгүй. Эхлээд нээлттэй өрөөнд бүртгүүлнэ. Тухайн өрөө 10/10 трейдертэй болмогц өрөө бэлэн болсныг
+              мэдэгдэж, орох хураамж төлөх болон challenge-ээ эхлүүлэх бэлтгэлийн мэдээллийг и-мэйлээр илгээнэ.
             </p>
 
             <div className="mt-5 grid gap-3">
@@ -63,7 +63,7 @@ export default async function ApplyPage() {
                 <div className="flex items-start gap-3">
                   <Landmark className="mt-0.5 size-5 text-[#83c5ff]" />
                   <div>
-                    <div className="text-sm font-semibold text-white">Bank details</div>
+                    <div className="text-sm font-semibold text-white">Банкны мэдээлэл</div>
                     <div className="mt-2 text-sm leading-7 text-white/72">
                       {paymentDetails.accountNumber}
                       <br />
@@ -79,7 +79,7 @@ export default async function ApplyPage() {
                 <div className="flex items-start gap-3">
                   <ReceiptText className="mt-0.5 size-5 text-[#83c5ff]" />
                   <div>
-                    <div className="text-sm font-semibold text-white">Payment reference</div>
+                    <div className="text-sm font-semibold text-white">Гүйлгээний утга</div>
                     <div className="mt-2 text-sm leading-7 text-white/62">{paymentDetails.transactionValueHint}</div>
                   </div>
                 </div>
