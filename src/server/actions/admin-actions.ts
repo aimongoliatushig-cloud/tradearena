@@ -41,6 +41,15 @@ function revalidatePaths(paths: string[]) {
   }
 }
 
+async function getPublicRoomPaths(roomId: string) {
+  const room = await db.challengeRoom.findUnique({
+    where: { id: roomId },
+    select: { slug: true },
+  });
+
+  return room ? [`/rooms/${roomId}`, `/rooms/${room.slug}`] : [`/rooms/${roomId}`];
+}
+
 export async function loginAdminAction(_: ActionState, formData: FormData): Promise<ActionState> {
   const parsed = adminLoginSchema.safeParse({
     email: formData.get("email"),
@@ -104,7 +113,7 @@ export async function saveRoomFormAction(formData: FormData) {
     const room = await upsertRoom(parsed);
     successPath = parsed.id ? returnPath : `/admin/rooms/${room.id}`;
 
-    revalidatePaths(["/admin", "/admin/rooms", `/admin/rooms/${room.id}`, "/", "/rooms", "/history"]);
+    revalidatePaths(["/admin", "/admin/rooms", `/admin/rooms/${room.id}`, ...(await getPublicRoomPaths(room.id)), "/", "/rooms", "/history"]);
   } catch (error) {
     redirectWithMessage(returnPath, "error", getUserFacingErrorMessage(error, "Өрөө хадгалах үед алдаа гарлаа."));
   }
@@ -127,7 +136,7 @@ export async function saveTraderFormAction(formData: FormData) {
 
     await upsertTrader(parsed);
 
-    revalidatePaths([`/admin/rooms/${parsed.roomId}`, "/admin/traders", "/", "/rooms"]);
+    revalidatePaths([`/admin/rooms/${parsed.roomId}`, ...(await getPublicRoomPaths(parsed.roomId)), "/admin/traders", "/", "/rooms"]);
   } catch (error) {
     redirectWithMessage(returnPath, "error", getUserFacingErrorMessage(error, "Трейдер хадгалах үед алдаа гарлаа."));
   }
@@ -142,7 +151,7 @@ export async function deleteTraderFormAction(formData: FormData) {
 
   await deleteTrader(traderId);
 
-  revalidatePaths([`/admin/rooms/${roomId}`, "/admin/traders", "/", "/rooms"]);
+  revalidatePaths([`/admin/rooms/${roomId}`, ...(await getPublicRoomPaths(roomId)), "/admin/traders", "/", "/rooms"]);
   redirectWithMessage(returnPath, "success", "Трейдер устлаа.");
 }
 
@@ -159,7 +168,7 @@ export async function setTraderViolationAction(formData: FormData) {
 
     await setTraderViolation(parsed);
 
-    revalidatePaths([`/admin/rooms/${roomId}`, "/admin/traders", `/rooms/${roomId}`]);
+    revalidatePaths([`/admin/rooms/${roomId}`, ...(await getPublicRoomPaths(roomId)), "/admin/traders"]);
   } catch (error) {
     redirectWithMessage(returnPath, "error", getUserFacingErrorMessage(error, "Зөрчил шинэчлэхэд алдаа гарлаа."));
   }
@@ -175,7 +184,7 @@ export async function refreshTraderAction(formData: FormData) {
   try {
     await refreshTraderStats(traderId, FetchSource.MANUAL);
 
-    revalidatePaths([`/admin/rooms/${roomId}`, "/admin/traders", `/rooms/${roomId}`, "/", "/rooms"]);
+    revalidatePaths([`/admin/rooms/${roomId}`, ...(await getPublicRoomPaths(roomId)), "/admin/traders", "/", "/rooms"]);
   } catch (error) {
     redirectWithMessage(returnPath, "error", getUserFacingErrorMessage(error, "Шинэчлэх үед алдаа гарлаа."));
   }
@@ -190,7 +199,7 @@ export async function refreshRoomAction(formData: FormData) {
   try {
     await refreshRoomStats(roomId, FetchSource.MANUAL);
 
-    revalidatePaths([`/admin/rooms/${roomId}`, "/admin/traders", "/admin/logs", `/rooms/${roomId}`, "/", "/rooms"]);
+    revalidatePaths([`/admin/rooms/${roomId}`, ...(await getPublicRoomPaths(roomId)), "/admin/traders", "/admin/logs", "/", "/rooms"]);
   } catch (error) {
     redirectWithMessage(returnPath, "error", getUserFacingErrorMessage(error, "Өрөө шинэчлэх үед алдаа гарлаа."));
   }

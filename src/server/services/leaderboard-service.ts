@@ -1,11 +1,12 @@
 import { Prisma, RoomLifecycleStatus } from "@prisma/client";
 
 import { db } from "@/lib/db";
+import { leaderboardTraderOrderBy } from "@/lib/leaderboard";
 
 export async function recomputeRoomLeaderboard(roomId: string) {
   const traders = await db.trader.findMany({
     where: { roomId },
-    orderBy: [{ currentProfitPercent: "desc" }, { latestSnapshotAt: "desc" }, { fullName: "asc" }],
+    orderBy: leaderboardTraderOrderBy,
   });
 
   if (!traders.length) {

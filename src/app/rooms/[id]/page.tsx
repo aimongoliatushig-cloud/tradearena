@@ -8,6 +8,7 @@ import { MetricCard } from "@/components/shared/metric-card";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { TraderLeaderboardTable } from "@/components/shared/trader-leaderboard-table";
 import { formatDate, formatDateTime, formatPercent } from "@/lib/format";
+import { sortTradersForLeaderboard } from "@/lib/leaderboard";
 import { roomStatusLabels, stepLabels } from "@/lib/labels";
 import { getPublicRoomDetail } from "@/server/services/room-service";
 
@@ -23,7 +24,8 @@ export default async function RoomDetailsPage({
     notFound();
   }
 
-  const leader = room.traders[0];
+  const sortedTraders = sortTradersForLeaderboard(room.traders);
+  const leader = sortedTraders[0];
   const latestUpdate = room.traders.reduce<Date | null>((latest, trader) => {
     if (!trader.latestSnapshotAt) return latest;
     if (!latest || trader.latestSnapshotAt > latest) return trader.latestSnapshotAt;

@@ -14,7 +14,8 @@
     "worker": "tsx src/workers/runner.ts",
     "jobs:run-now": "tsx src/workers/run-now.ts",
     "refresh:room": "tsx src/workers/refresh-room.ts",
-    "playwright:install": "playwright install chromium",
+    "playwright:install": "npx playwright install --with-deps",
+    "vercel-build": "npm run playwright:install && npm run build",
     "postinstall": "prisma generate"
   },
   "prisma": {
@@ -69,4 +70,5 @@
     "tsx": "^4.21.0",
     "typescript": "^5"
   }
+  
 }

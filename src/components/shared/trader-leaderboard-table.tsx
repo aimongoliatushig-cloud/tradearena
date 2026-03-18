@@ -4,6 +4,7 @@ import type { Trader, TraderSnapshot } from "@prisma/client";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { buildNegativePressure, buildProgressValue, formatCurrency, formatDateTime, formatPercent } from "@/lib/format";
+import { sortTradersForLeaderboard } from "@/lib/leaderboard";
 
 type LeaderboardTrader = Trader & {
   snapshots?: TraderSnapshot[];
@@ -16,6 +17,8 @@ export function TraderLeaderboardTable({
   traders: LeaderboardTrader[];
   winnerTraderId?: string | null;
 }) {
+  const sortedTraders = sortTradersForLeaderboard(traders);
+
   return (
     <div className="overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.035] shadow-[0_24px_60px_rgba(0,0,0,0.28)] backdrop-blur-xl">
       <Table>
@@ -30,13 +33,13 @@ export function TraderLeaderboardTable({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {traders.map((trader) => {
+          {sortedTraders.map((trader, index) => {
             const progress = buildProgressValue(trader.currentProfitPercent);
             const negativePressure = buildNegativePressure(trader.currentProfitPercent);
 
             return (
               <TableRow key={trader.id} className="border-white/8 hover:bg-white/[0.025]">
-                <TableCell className="px-4 py-4 font-medium text-white/72">{trader.rank ?? "-"}</TableCell>
+                <TableCell className="px-4 py-4 font-medium text-white/72">{index + 1}</TableCell>
                 <TableCell className="px-4 py-4">
                   <div className="flex flex-col gap-1">
                     <div className={`flex items-center gap-2 font-medium ${trader.violationFlag ? "text-red-300" : "text-white"}`}>

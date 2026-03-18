@@ -7,6 +7,7 @@ import { StatusBadge } from "@/components/shared/status-badge";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { buttonVariants } from "@/lib/button-variants";
 import { formatDate, formatDateTime, formatPercent } from "@/lib/format";
+import { sortTradersForLeaderboard } from "@/lib/leaderboard";
 import { roomStatusLabels, stepLabels } from "@/lib/labels";
 import { cn } from "@/lib/utils";
 
@@ -28,7 +29,8 @@ function getRoomTone(status: ChallengeRoom["lifecycleStatus"]) {
 }
 
 export function RoomCard({ room, href }: { room: RoomCardRoom; href: string }) {
-  const leader = room.traders[0];
+  const sortedTraders = sortTradersForLeaderboard(room.traders);
+  const leader = sortedTraders[0];
   const latestUpdated = room.traders.reduce<Date | null>((latest, trader) => {
     if (!trader.latestSnapshotAt) return latest;
     if (!latest || trader.latestSnapshotAt > latest) return trader.latestSnapshotAt;

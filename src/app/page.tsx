@@ -9,6 +9,7 @@ import { RoomCard } from "@/components/shared/room-card";
 import { buttonVariants } from "@/lib/button-variants";
 import { DEFAULT_TARGET_PERCENT } from "@/lib/constants";
 import { buildProgressValue, formatPercent } from "@/lib/format";
+import { sortTradersForLeaderboard } from "@/lib/leaderboard";
 import { accountSizeLabels } from "@/lib/labels";
 import { cn } from "@/lib/utils";
 import { getApplicantBuckets } from "@/server/services/applicant-service";
@@ -47,7 +48,8 @@ export default async function HomePage() {
   ]);
 
   const leaderSummaries = activeRooms.map((room) => {
-    const leader = room.traders.find((trader) => trader.active) ?? room.traders[0] ?? null;
+    const sortedTraders = sortTradersForLeaderboard(room.traders);
+    const leader = sortedTraders.find((trader) => trader.active) ?? sortedTraders[0] ?? null;
     const activeTraderCount = room.traders.filter((trader) => trader.active).length;
     const currentProfit = leader?.currentProfitPercent ?? 0;
 

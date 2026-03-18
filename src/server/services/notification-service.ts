@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { dayjs } from "@/lib/dayjs";
 import { env } from "@/lib/env";
 import { formatCurrency, formatDateTime, formatPercent } from "@/lib/format";
+import { leaderboardTraderOrderBy } from "@/lib/leaderboard";
 import { accountSizeLabels, stepLabels } from "@/lib/labels";
 
 const ROOM_EMAIL_RECIPIENT_STATUSES = [
@@ -181,7 +182,7 @@ export async function sendRoomPerformanceReportIfDue(roomId: string, minuteKey: 
     include: {
       traders: {
         where: { active: true },
-        orderBy: [{ rank: "asc" }, { currentProfitPercent: "desc" }, { fullName: "asc" }],
+        orderBy: leaderboardTraderOrderBy,
       },
       applicants: {
         where: {

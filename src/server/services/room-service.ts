@@ -1,6 +1,7 @@
 import { ApplicantStatus, RoomLifecycleStatus, RoomPublicStatus, type ChallengeRoom } from "@prisma/client";
 
 import { db } from "@/lib/db";
+import { leaderboardTraderOrderBy } from "@/lib/leaderboard";
 import { normalizeFtmoUrl, parseScheduleInput } from "@/lib/validators";
 import { recomputeRoomLeaderboard } from "@/server/services/leaderboard-service";
 import { getDefaultScheduleConfig } from "@/server/services/settings-service";
@@ -61,7 +62,7 @@ export async function listPublicRooms() {
     },
     include: {
       traders: {
-        orderBy: [{ rank: "asc" }, { currentProfitPercent: "desc" }],
+        orderBy: leaderboardTraderOrderBy,
       },
       winnerTrader: true,
     },
@@ -126,7 +127,7 @@ export async function listHistoricalRooms() {
     },
     include: {
       traders: {
-        orderBy: [{ rank: "asc" }, { currentProfitPercent: "desc" }],
+        orderBy: leaderboardTraderOrderBy,
       },
       winnerTrader: true,
     },
@@ -142,7 +143,7 @@ export async function getPublicRoomDetail(roomIdOrSlug: string) {
     },
     include: {
       traders: {
-        orderBy: [{ rank: "asc" }, { currentProfitPercent: "desc" }, { fullName: "asc" }],
+        orderBy: leaderboardTraderOrderBy,
         include: {
           snapshots: {
             orderBy: { fetchedAt: "desc" },
@@ -159,7 +160,7 @@ export async function listAdminRooms() {
   return db.challengeRoom.findMany({
     include: {
       traders: {
-        orderBy: [{ rank: "asc" }],
+        orderBy: leaderboardTraderOrderBy,
       },
     },
     orderBy: [{ updatedAt: "desc" }],
@@ -171,7 +172,7 @@ export async function getAdminRoomDetail(roomId: string) {
     where: { id: roomId },
     include: {
       traders: {
-        orderBy: [{ rank: "asc" }, { currentProfitPercent: "desc" }],
+        orderBy: leaderboardTraderOrderBy,
         include: {
           snapshots: {
             orderBy: { fetchedAt: "desc" },
