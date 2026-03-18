@@ -15,8 +15,8 @@ const alertTone: Partial<Record<JobStatus, string>> = {
 };
 
 const alertLabel: Partial<Record<JobStatus, string>> = {
-  [JobStatus.FAILED]: "Алдаа",
-  [JobStatus.PARTIAL]: "Анхааруулга",
+  [JobStatus.FAILED]: "Error",
+  [JobStatus.PARTIAL]: "Warning",
 };
 
 export default async function AdminDashboardPage({
@@ -31,13 +31,13 @@ export default async function AdminDashboardPage({
     <section className="space-y-8">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h1 className="text-3xl font-semibold text-white">Админ хянах самбар</h1>
-          <p className="mt-2 text-sm text-white/60">Өрөө, өргөдөл, scrape хяналтыг эндээс удирдана.</p>
+          <h1 className="text-3xl font-semibold text-white">Admin dashboard</h1>
+          <p className="mt-2 text-sm text-white/60">Manage rooms, signups, and scraping health from one place.</p>
         </div>
         <div className="flex flex-wrap gap-3">
-          <Button render={<Link href="/admin/rooms/new" />}>Шинэ өрөө</Button>
+          <Button render={<Link href="/admin/rooms/new" />}>New room</Button>
           <Button variant="secondary" render={<Link href="/admin/applicants" />}>
-            Өргөдөл харах
+            View applicants
           </Button>
         </div>
       </div>
@@ -47,20 +47,21 @@ export default async function AdminDashboardPage({
         error={typeof flash.error === "string" ? flash.error : undefined}
       />
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-        <MetricCard label="Идэвхтэй өрөө" value={String(summary.roomTotals.active)} />
-        <MetricCard label="Түүхэн өрөө" value={String(summary.roomTotals.history)} />
-        <MetricCard label="Трейдер" value={String(summary.roomTotals.traders)} />
-        <MetricCard label="Хүлээгдэж буй өргөдөл" value={String(summary.roomTotals.pendingApplicants)} />
-        <MetricCard label="Зөвшөөрсөн өргөдөл" value={String(summary.roomTotals.acceptedApplicants)} />
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
+        <MetricCard label="Running rooms" value={String(summary.roomTotals.running)} />
+        <MetricCard label="Open signup rooms" value={String(summary.roomTotals.signupOpen)} />
+        <MetricCard label="Ready to start" value={String(summary.roomTotals.readyToStart)} />
+        <MetricCard label="Traders" value={String(summary.roomTotals.traders)} />
+        <MetricCard label="Pending signups" value={String(summary.roomTotals.pendingApplicants)} />
+        <MetricCard label="Contacted signups" value={String(summary.roomTotals.contactedApplicants)} />
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
         <div className="glass-panel p-6">
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-xl font-semibold text-white">Сүүлд шинэчлэгдсэн өрөө</h2>
+            <h2 className="text-xl font-semibold text-white">Recently updated rooms</h2>
             <Button variant="outline" render={<Link href="/admin/rooms" />}>
-              Бүгд
+              View all
             </Button>
           </div>
           <div className="space-y-3">
@@ -72,7 +73,7 @@ export default async function AdminDashboardPage({
               >
                 <div>
                   <div className="font-medium text-white">{room.title}</div>
-                  <div className="text-sm text-white/55">{room.traders.length} трейдер</div>
+                  <div className="text-sm text-white/55">{room.traders.length} traders</div>
                 </div>
                 <div className="text-sm text-white/50">{formatDateTime(room.updatedAt)}</div>
               </Link>
@@ -81,7 +82,7 @@ export default async function AdminDashboardPage({
         </div>
 
         <div className="glass-panel p-6">
-          <h2 className="mb-4 text-xl font-semibold text-white">Одоогийн scrape асуудлууд</h2>
+          <h2 className="mb-4 text-xl font-semibold text-white">Scrape alerts</h2>
           <div className="space-y-3">
             {summary.alertLogs.length ? (
               summary.alertLogs.map((log) => (
@@ -90,12 +91,12 @@ export default async function AdminDashboardPage({
                     <div className="font-medium text-white">{log.room?.title ?? log.trader?.fullName ?? log.jobType}</div>
                     <div className="text-xs uppercase tracking-[0.2em] text-white/70">{alertLabel[log.status] ?? log.status}</div>
                   </div>
-                  <div className="mt-2 text-sm">{log.message ?? "Алдааны тайлбар байхгүй"}</div>
+                  <div className="mt-2 text-sm">{log.message ?? "No details available."}</div>
                   <div className="mt-2 text-xs text-white/50">{formatDateTime(log.startedAt)}</div>
                 </div>
               ))
             ) : (
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-white/60">Одоогоор идэвхтэй scrape асуудал алга.</div>
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-white/60">No active scraping issues right now.</div>
             )}
           </div>
         </div>

@@ -4,6 +4,7 @@ import { ScheduleTimesInput } from "@/components/admin/schedule-times-input";
 import { SubmitButton } from "@/components/forms/submit-button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { accountSizeLabels, roomPublicStatusLabels, roomStatusLabels, stepLabels } from "@/lib/labels";
+import { getDefaultEntryFeeUsd } from "@/lib/pricing";
 import { saveRoomFormAction } from "@/server/actions/admin-actions";
 import { getDefaultScheduleConfig } from "@/server/services/settings-service";
 
@@ -20,16 +21,16 @@ export async function RoomForm({
   return (
     <Card className="border-white/10 bg-white/6 backdrop-blur-xl">
       <CardHeader>
-        <CardTitle className="text-xl text-white">{room ? "Өрөө засах" : "Шинэ өрөө үүсгэх"}</CardTitle>
+        <CardTitle className="text-xl text-white">{room ? "Edit room" : "Create room"}</CardTitle>
       </CardHeader>
       <CardContent>
         <form action={saveRoomFormAction} className="space-y-4">
           <input type="hidden" name="id" defaultValue={room?.id} />
           <input type="hidden" name="returnPath" value={returnPath} />
 
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-4 md:grid-cols-3">
             <div className="space-y-2">
-              <label className="text-sm text-white/70">Өрөөний нэр</label>
+              <label className="text-sm text-white/70">Room title</label>
               <input
                 name="title"
                 defaultValue={room?.title}
@@ -37,7 +38,7 @@ export async function RoomForm({
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm text-white/70">Трейдерийн дээд тоо</label>
+              <label className="text-sm text-white/70">Max traders</label>
               <input
                 name="maxTraderCapacity"
                 type="number"
@@ -47,10 +48,21 @@ export async function RoomForm({
                 className="flex h-11 w-full rounded-2xl border border-white/12 bg-slate-950/60 px-4 text-white outline-none"
               />
             </div>
+            <div className="space-y-2">
+              <label className="text-sm text-white/70">Entry fee (USD)</label>
+              <input
+                name="entryFeeUsd"
+                type="number"
+                min={0}
+                step="0.01"
+                defaultValue={room?.entryFeeUsd ?? getDefaultEntryFeeUsd(room?.accountSize ?? AccountSize.SIZE_10K)}
+                className="flex h-11 w-full rounded-2xl border border-white/12 bg-slate-950/60 px-4 text-white outline-none"
+              />
+            </div>
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm text-white/70">Тайлбар</label>
+            <label className="text-sm text-white/70">Description</label>
             <textarea
               name="description"
               defaultValue={room?.description ?? ""}
@@ -60,21 +72,21 @@ export async function RoomForm({
           </div>
 
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <SelectField name="accountSize" label="Дансны хэмжээ" defaultValue={room?.accountSize ?? AccountSize.SIZE_10K}>
+            <SelectField name="accountSize" label="Account size" defaultValue={room?.accountSize ?? AccountSize.SIZE_10K}>
               {Object.values(AccountSize).map((value) => (
                 <option key={value} value={value}>
                   {accountSizeLabels[value]}
                 </option>
               ))}
             </SelectField>
-            <SelectField name="step" label="Алхам" defaultValue={room?.step ?? ChallengeStep.STEP_1}>
+            <SelectField name="step" label="Challenge step" defaultValue={room?.step ?? ChallengeStep.STEP_1}>
               {Object.values(ChallengeStep).map((value) => (
                 <option key={value} value={value}>
                   {stepLabels[value]}
                 </option>
               ))}
             </SelectField>
-            <SelectField name="publicStatus" label="Нийтийн төлөв" defaultValue={room?.publicStatus ?? RoomPublicStatus.PUBLIC}>
+            <SelectField name="publicStatus" label="Public visibility" defaultValue={room?.publicStatus ?? RoomPublicStatus.PUBLIC}>
               {Object.values(RoomPublicStatus).map((value) => (
                 <option key={value} value={value}>
                   {roomPublicStatusLabels[value]}
@@ -83,8 +95,8 @@ export async function RoomForm({
             </SelectField>
             <SelectField
               name="lifecycleStatus"
-              label="Өрөөний төлөв"
-              defaultValue={room?.lifecycleStatus ?? RoomLifecycleStatus.ACTIVE}
+              label="Room status"
+              defaultValue={room?.lifecycleStatus ?? RoomLifecycleStatus.SIGNUP_OPEN}
             >
               {Object.values(RoomLifecycleStatus).map((value) => (
                 <option key={value} value={value}>
@@ -96,7 +108,7 @@ export async function RoomForm({
 
           <div className="grid gap-4 md:grid-cols-3">
             <div className="space-y-2">
-              <label className="text-sm text-white/70">Эхлэх огноо</label>
+              <label className="text-sm text-white/70">Start date</label>
               <input
                 name="startDate"
                 type="date"
@@ -105,7 +117,7 @@ export async function RoomForm({
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm text-white/70">Дуусах огноо</label>
+              <label className="text-sm text-white/70">End date</label>
               <input
                 name="endDate"
                 type="date"
@@ -125,16 +137,16 @@ export async function RoomForm({
 
           <div className="grid gap-4 md:grid-cols-[1fr_auto]">
             <div className="space-y-2">
-              <label className="text-sm text-white/70">Өдрийн шинэчлэлтийн цагууд</label>
+              <label className="text-sm text-white/70">Daily update times</label>
               <ScheduleTimesInput name="updateTimesInput" defaultTimes={initialUpdateTimes} />
             </div>
             <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/70">
               <input type="checkbox" name="allowExpiredUpdates" defaultChecked={room?.allowExpiredUpdates ?? false} />
-              Хугацаа дууссаны дараа ч scrape хийх
+              Allow scraping after expiry
             </label>
           </div>
 
-          <SubmitButton>{room ? "Өөрчлөлт хадгалах" : "Өрөө үүсгэх"}</SubmitButton>
+          <SubmitButton>{room ? "Save room changes" : "Create room"}</SubmitButton>
         </form>
       </CardContent>
     </Card>

@@ -10,14 +10,13 @@ import { getUserFacingErrorMessage } from "@/lib/error-utils";
 import {
   adminLoginSchema,
   applicantStatusSchema,
-  invitationSchema,
   roomFormSchema,
   settingsSchema,
   traderFormSchema,
   traderViolationSchema,
 } from "@/lib/validators";
 import type { ActionState } from "@/server/actions/action-state";
-import { sendInvitationsByAccountSize, updateApplicantStatus } from "@/server/services/applicant-service";
+import { updateApplicantStatus } from "@/server/services/applicant-service";
 import { deleteTrader, upsertRoom, upsertTrader } from "@/server/services/room-service";
 import { saveSettings } from "@/server/services/settings-service";
 import { refreshRoomStats, refreshTraderStats, setTraderViolation } from "@/server/services/trader-service";
@@ -59,7 +58,7 @@ export async function loginAdminAction(_: ActionState, formData: FormData): Prom
   if (!parsed.success) {
     return {
       status: "error",
-      message: "Имэйл эсвэл нууц үг буруу байна.",
+      message: "Invalid email or password.",
       fieldErrors: parsed.error.flatten().fieldErrors,
     };
   }
@@ -71,7 +70,7 @@ export async function loginAdminAction(_: ActionState, formData: FormData): Prom
   if (!admin || !(await verifyPassword(parsed.data.password, admin.passwordHash))) {
     return {
       status: "error",
-      message: "Имэйл эсвэл нууц үг буруу байна.",
+      message: "Invalid email or password.",
     };
   }
 
@@ -100,6 +99,7 @@ export async function saveRoomFormAction(formData: FormData) {
       description: formData.get("description") || undefined,
       accountSize: formData.get("accountSize"),
       step: formData.get("step"),
+      entryFeeUsd: formData.get("entryFeeUsd"),
       startDate: formData.get("startDate"),
       endDate: formData.get("endDate"),
       publicStatus: formData.get("publicStatus"),
@@ -113,12 +113,12 @@ export async function saveRoomFormAction(formData: FormData) {
     const room = await upsertRoom(parsed);
     successPath = parsed.id ? returnPath : `/admin/rooms/${room.id}`;
 
-    revalidatePaths(["/admin", "/admin/rooms", `/admin/rooms/${room.id}`, ...(await getPublicRoomPaths(room.id)), "/", "/rooms", "/history"]);
+    revalidatePaths(["/admin", "/admin/rooms", `/admin/rooms/${room.id}`, ...(await getPublicRoomPaths(room.id)), "/", "/rooms", "/history", "/apply"]);
   } catch (error) {
-    redirectWithMessage(returnPath, "error", getUserFacingErrorMessage(error, "Өрөө хадгалах үед алдаа гарлаа."));
+    redirectWithMessage(returnPath, "error", getUserFacingErrorMessage(error, "Failed to save room."));
   }
 
-  redirectWithMessage(successPath, "success", "Өрөө амжилттай хадгалагдлаа.");
+  redirectWithMessage(successPath, "success", "Room saved.");
 }
 
 export async function saveTraderFormAction(formData: FormData) {
@@ -138,10 +138,10 @@ export async function saveTraderFormAction(formData: FormData) {
 
     revalidatePaths([`/admin/rooms/${parsed.roomId}`, ...(await getPublicRoomPaths(parsed.roomId)), "/admin/traders", "/", "/rooms"]);
   } catch (error) {
-    redirectWithMessage(returnPath, "error", getUserFacingErrorMessage(error, "Трейдер хадгалах үед алдаа гарлаа."));
+    redirectWithMessage(returnPath, "error", getUserFacingErrorMessage(error, "Failed to save trader."));
   }
 
-  redirectWithMessage(returnPath, "success", "Трейдерийн мэдээлэл хадгалагдлаа.");
+  redirectWithMessage(returnPath, "success", "Trader saved.");
 }
 
 export async function deleteTraderFormAction(formData: FormData) {
@@ -152,7 +152,7 @@ export async function deleteTraderFormAction(formData: FormData) {
   await deleteTrader(traderId);
 
   revalidatePaths([`/admin/rooms/${roomId}`, ...(await getPublicRoomPaths(roomId)), "/admin/traders", "/", "/rooms"]);
-  redirectWithMessage(returnPath, "success", "Трейдер устлаа.");
+  redirectWithMessage(returnPath, "success", "Trader deleted.");
 }
 
 export async function setTraderViolationAction(formData: FormData) {
@@ -170,10 +170,10 @@ export async function setTraderViolationAction(formData: FormData) {
 
     revalidatePaths([`/admin/rooms/${roomId}`, ...(await getPublicRoomPaths(roomId)), "/admin/traders"]);
   } catch (error) {
-    redirectWithMessage(returnPath, "error", getUserFacingErrorMessage(error, "Зөрчил шинэчлэхэд алдаа гарлаа."));
+    redirectWithMessage(returnPath, "error", getUserFacingErrorMessage(error, "Failed to update trader violation."));
   }
 
-  redirectWithMessage(returnPath, "success", "Зөрчлийн төлөв шинэчлэгдлээ.");
+  redirectWithMessage(returnPath, "success", "Trader violation updated.");
 }
 
 export async function refreshTraderAction(formData: FormData) {
@@ -186,10 +186,10 @@ export async function refreshTraderAction(formData: FormData) {
 
     revalidatePaths([`/admin/rooms/${roomId}`, ...(await getPublicRoomPaths(roomId)), "/admin/traders", "/", "/rooms"]);
   } catch (error) {
-    redirectWithMessage(returnPath, "error", getUserFacingErrorMessage(error, "Шинэчлэх үед алдаа гарлаа."));
+    redirectWithMessage(returnPath, "error", getUserFacingErrorMessage(error, "Failed to refresh trader."));
   }
 
-  redirectWithMessage(returnPath, "success", "Трейдерийг гараар шинэчиллээ.");
+  redirectWithMessage(returnPath, "success", "Trader refreshed.");
 }
 
 export async function refreshRoomAction(formData: FormData) {
@@ -201,10 +201,10 @@ export async function refreshRoomAction(formData: FormData) {
 
     revalidatePaths([`/admin/rooms/${roomId}`, ...(await getPublicRoomPaths(roomId)), "/admin/traders", "/admin/logs", "/", "/rooms"]);
   } catch (error) {
-    redirectWithMessage(returnPath, "error", getUserFacingErrorMessage(error, "Өрөө шинэчлэх үед алдаа гарлаа."));
+    redirectWithMessage(returnPath, "error", getUserFacingErrorMessage(error, "Failed to refresh room."));
   }
 
-  redirectWithMessage(returnPath, "success", "Өрөөний бүх трейдер амжилттай шинэчлэгдлээ.");
+  redirectWithMessage(returnPath, "success", "Room refreshed.");
 }
 
 export async function updateApplicantStatusAction(formData: FormData) {
@@ -218,35 +218,12 @@ export async function updateApplicantStatusAction(formData: FormData) {
     });
 
     await updateApplicantStatus(parsed);
-    revalidatePaths(["/admin/applicants"]);
+    revalidatePaths(["/admin/applicants", "/apply"]);
   } catch (error) {
-    redirectWithMessage(returnPath, "error", getUserFacingErrorMessage(error, "Өргөдлийн төлөв шинэчлэх үед алдаа гарлаа."));
+    redirectWithMessage(returnPath, "error", getUserFacingErrorMessage(error, "Failed to update applicant status."));
   }
 
-  redirectWithMessage(returnPath, "success", "Өргөдлийн төлөв шинэчлэгдлээ.");
-}
-
-export async function sendInvitationsAction(formData: FormData) {
-  const returnPath = String(formData.get("returnPath") || "/admin/applicants");
-  let successMessage = "0 өргөдөлд урилгын мэдээлэл боловсруулагдлаа.";
-
-  try {
-    const parsed = invitationSchema.parse({
-      accountSize: formData.get("accountSize"),
-      roomLink: formData.get("roomLink"),
-      subject: formData.get("subject"),
-      extraInstructions: formData.get("extraInstructions"),
-    });
-
-    const sent = await sendInvitationsByAccountSize(parsed);
-    successMessage = `${sent} өргөдөлд урилгын мэдээлэл боловсруулагдлаа.`;
-
-    revalidatePaths(["/admin/applicants"]);
-  } catch (error) {
-    redirectWithMessage(returnPath, "error", getUserFacingErrorMessage(error, "Урилга боловсруулах үед алдаа гарлаа."));
-  }
-
-  redirectWithMessage(returnPath, "success", successMessage);
+  redirectWithMessage(returnPath, "success", "Applicant status updated.");
 }
 
 export async function saveSettingsAction(formData: FormData) {
@@ -256,15 +233,19 @@ export async function saveSettingsAction(formData: FormData) {
     const parsed = settingsSchema.parse({
       defaultScheduleInput: formData.get("defaultScheduleInput"),
       timezone: formData.get("timezone"),
-      invitationSubject: formData.get("invitationSubject"),
-      invitationMessage: formData.get("invitationMessage"),
+      roomReadySubject: formData.get("roomReadySubject"),
+      roomReadyMessage: formData.get("roomReadyMessage"),
+      bankName: formData.get("bankName"),
+      accountHolder: formData.get("accountHolder"),
+      accountNumber: formData.get("accountNumber"),
+      transactionValueHint: formData.get("transactionValueHint"),
     });
 
     await saveSettings(parsed);
-    revalidatePaths(["/admin/settings"]);
+    revalidatePaths(["/admin/settings", "/apply"]);
   } catch (error) {
-    redirectWithMessage(returnPath, "error", getUserFacingErrorMessage(error, "Тохиргоо хадгалах үед алдаа гарлаа."));
+    redirectWithMessage(returnPath, "error", getUserFacingErrorMessage(error, "Failed to save settings."));
   }
 
-  redirectWithMessage(returnPath, "success", "Системийн тохиргоо хадгалагдлаа.");
+  redirectWithMessage(returnPath, "success", "Settings saved.");
 }

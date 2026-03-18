@@ -1,19 +1,22 @@
 import {
   AccountSize,
   ApplicantStatus,
-  NotificationChannel,
-  NotificationKind,
-  NotificationStatus,
+  Prisma,
   RoomLifecycleStatus,
   RoomPublicStatus,
 } from "@prisma/client";
-import nodemailer from "nodemailer";
 
 import { APPLY_RATE_LIMIT_PER_HOUR } from "@/lib/constants";
 import { db } from "@/lib/db";
-import { env } from "@/lib/env";
-import { sendSignupNotifications } from "@/server/services/notification-service";
-import { getInvitationTemplates } from "@/server/services/settings-service";
+import { sendRoomReadyNotifications, sendSignupNotifications } from "@/server/services/notification-service";
+import { ensureOpenSignupRoom } from "@/server/services/room-service";
+
+const ACTIVE_SIGNUP_STATUSES = [
+  ApplicantStatus.PENDING,
+  ApplicantStatus.ACCEPTED,
+  ApplicantStatus.ASSIGNED,
+  ApplicantStatus.INVITATION_SENT,
+] as const;
 
 export async function listApplicants(accountSize?: AccountSize) {
   return db.applicant.findMany({
@@ -26,36 +29,35 @@ export async function listApplicants(accountSize?: AccountSize) {
 }
 
 export async function getApplicantBuckets() {
-  const [applicants, templates] = await Promise.all([listApplicants(), getInvitationTemplates()]);
+  const applicants = await listApplicants();
 
   return Object.values(AccountSize).map((size) => {
     const sizeApplicants = applicants.filter((applicant) => applicant.desiredAccountSize === size);
-    const activeApplicants = sizeApplicants.filter((item) => item.status !== ApplicantStatus.REJECTED);
-    const acceptedApplicants = sizeApplicants.filter(
-      (item) =>
-        item.status === ApplicantStatus.ACCEPTED ||
-        item.status === ApplicantStatus.INVITATION_SENT ||
-        item.status === ApplicantStatus.ASSIGNED ||
-        item.status === ApplicantStatus.JOINED,
+    const openRoomApplicants = sizeApplicants.filter(
+      (item) => item.status !== ApplicantStatus.REJECTED && item.room?.lifecycleStatus === RoomLifecycleStatus.SIGNUP_OPEN,
     );
+    const readyRoomApplicants = sizeApplicants.filter(
+      (item) => item.status !== ApplicantStatus.REJECTED && item.room?.lifecycleStatus === RoomLifecycleStatus.READY_TO_START,
+    );
+    const contactedApplicants = sizeApplicants.filter((item) => item.status === ApplicantStatus.INVITATION_SENT);
 
     return {
       accountSize: size,
       total: sizeApplicants.length,
-      active: activeApplicants.length,
-      accepted: acceptedApplicants.length,
-      ready: activeApplicants.length >= 10,
+      active: openRoomApplicants.length,
+      accepted: contactedApplicants.length,
+      ready: readyRoomApplicants.length > 0,
       applicants: sizeApplicants,
-      template: templates,
     };
   });
 }
 
 export async function createApplicant(input: {
+  clerkUserId: string;
   fullName: string;
   email: string;
   phoneNumber: string;
-  telegramUsername?: string;
+  telegramUsername: string;
   roomId: string;
   note?: string;
   ipAddress: string;
@@ -73,7 +75,7 @@ export async function createApplicant(input: {
   });
 
   if (recentAttempts >= APPLY_RATE_LIMIT_PER_HOUR) {
-    throw new Error("Түр хүлээнэ үү. Та хэт олон удаа илгээсэн байна.");
+    throw new Error("Too many attempts. Please wait and try again.");
   }
 
   await db.submissionAttempt.create({
@@ -83,51 +85,109 @@ export async function createApplicant(input: {
       metadata: {
         email: input.email,
         roomId: input.roomId,
+        clerkUserId: input.clerkUserId,
       },
     },
   });
 
-  const room = await db.challengeRoom.findFirst({
-    where: {
-      id: input.roomId,
-      lifecycleStatus: RoomLifecycleStatus.ACTIVE,
-      publicStatus: RoomPublicStatus.PUBLIC,
-    },
-    include: {
-      applicants: {
+  const result = await db.$transaction(
+    async (tx) => {
+      const room = await tx.challengeRoom.findFirst({
         where: {
-          status: {
-            not: ApplicantStatus.REJECTED,
+          id: input.roomId,
+          lifecycleStatus: RoomLifecycleStatus.SIGNUP_OPEN,
+          publicStatus: RoomPublicStatus.PUBLIC,
+        },
+        include: {
+          applicants: {
+            where: {
+              status: {
+                not: ApplicantStatus.REJECTED,
+              },
+            },
+            select: { id: true },
           },
         },
-        select: { id: true },
-      },
-    },
-  });
+      });
 
-  if (!room) {
-    throw new Error("Сонгосон өрөө идэвхгүй эсвэл олдсонгүй.");
+      if (!room) {
+        throw new Error("This room is closed for signup.");
+      }
+
+      if (room.applicants.length >= room.maxTraderCapacity) {
+        throw new Error("This room is already full. Choose a different room.");
+      }
+
+      const existingApplicant = await tx.applicant.findFirst({
+        where: {
+          clerkUserId: input.clerkUserId,
+          desiredAccountSize: room.accountSize,
+          status: {
+            in: [...ACTIVE_SIGNUP_STATUSES],
+          },
+        },
+        include: {
+          room: {
+            select: {
+              title: true,
+            },
+          },
+        },
+      });
+
+      if (existingApplicant) {
+        throw new Error(`You already have an active signup for ${existingApplicant.room?.title ?? "this account size"}.`);
+      }
+
+      const applicant = await tx.applicant.create({
+        data: {
+          clerkUserId: input.clerkUserId,
+          fullName: input.fullName,
+          email: input.email,
+          phoneNumber: input.phoneNumber,
+          telegramUsername: input.telegramUsername,
+          desiredAccountSize: room.accountSize,
+          roomId: room.id,
+          note: input.note || null,
+        },
+      });
+
+      const nextApplicantCount = room.applicants.length + 1;
+      const roomJustFilled = nextApplicantCount >= room.maxTraderCapacity;
+
+      if (roomJustFilled) {
+        await tx.challengeRoom.update({
+          where: { id: room.id },
+          data: {
+            lifecycleStatus: RoomLifecycleStatus.READY_TO_START,
+          },
+        });
+      }
+
+      return { applicant, room, roomJustFilled };
+    },
+    {
+      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+    },
+  );
+
+  if (result.roomJustFilled) {
+    await ensureOpenSignupRoom(result.room.accountSize, {
+      description: result.room.description ?? undefined,
+      entryFeeUsd: result.room.entryFeeUsd,
+      maxTraderCapacity: result.room.maxTraderCapacity,
+      step: result.room.step,
+      updateTimes: result.room.updateTimes,
+      updateTimezone: result.room.updateTimezone,
+      allowExpiredUpdates: result.room.allowExpiredUpdates,
+    });
+
+    await sendRoomReadyNotifications(result.room.id);
+  } else {
+    await sendSignupNotifications(result.applicant.id);
   }
 
-  if (room.applicants.length >= room.maxTraderCapacity) {
-    throw new Error("Сонгосон өрөө дүүрсэн байна. Өөр өрөө сонгоно уу.");
-  }
-
-  const applicant = await db.applicant.create({
-    data: {
-      fullName: input.fullName,
-      email: input.email,
-      phoneNumber: input.phoneNumber,
-      telegramUsername: input.telegramUsername || null,
-      desiredAccountSize: room.accountSize,
-      roomId: room.id,
-      note: input.note || null,
-    },
-  });
-
-  await sendSignupNotifications(applicant.id);
-
-  return applicant;
+  return result.applicant;
 }
 
 export async function updateApplicantStatus(input: {
@@ -144,110 +204,4 @@ export async function updateApplicantStatus(input: {
       joinedAt: input.status === ApplicantStatus.JOINED ? new Date() : undefined,
     },
   });
-}
-
-function canSendEmail() {
-  return Boolean(env.SMTP_HOST && env.SMTP_PORT && env.SMTP_USER && env.SMTP_PASS);
-}
-
-function createTransporter() {
-  if (!canSendEmail()) {
-    return null;
-  }
-
-  return nodemailer.createTransport({
-    host: env.SMTP_HOST,
-    port: env.SMTP_PORT,
-    secure: env.SMTP_PORT === 465,
-    auth: {
-      user: env.SMTP_USER,
-      pass: env.SMTP_PASS,
-    },
-  });
-}
-
-export async function sendInvitationsByAccountSize(input: {
-  accountSize: AccountSize;
-  roomLink: string;
-  subject: string;
-  extraInstructions: string;
-}) {
-  const templates = await getInvitationTemplates();
-  const applicants = await db.applicant.findMany({
-    where: {
-      desiredAccountSize: input.accountSize,
-      status: ApplicantStatus.ACCEPTED,
-    },
-    orderBy: { createdAt: "asc" },
-    take: 10,
-  });
-
-  if (applicants.length < 10) {
-    throw new Error("Энэ ангилалд имэйл илгээхэд 10 зөвшөөрсөн өргөдөл бүрдээгүй байна.");
-  }
-
-  const transporter = createTransporter();
-
-  for (const applicant of applicants) {
-    const message = (templates.message || input.extraInstructions)
-      .replace("{roomLink}", input.roomLink)
-      .replace("{extraInstructions}", input.extraInstructions);
-
-    let status: NotificationStatus = NotificationStatus.SKIPPED;
-    let errorMessage: string | null = null;
-
-    if (transporter) {
-      try {
-        await transporter.sendMail({
-          from: env.SMTP_FROM,
-          to: applicant.email,
-          subject: input.subject || templates.subject,
-          text: message,
-        });
-        status = NotificationStatus.SENT;
-      } catch (error) {
-        status = NotificationStatus.FAILED;
-        errorMessage = error instanceof Error ? error.message : "Имэйл илгээх алдаа.";
-      }
-    }
-
-    await db.notificationDispatch.create({
-      data: {
-        applicantId: applicant.id,
-        channel: NotificationChannel.EMAIL,
-        kind: NotificationKind.ROOM_INVITATION,
-        recipient: applicant.email,
-        subject: input.subject || templates.subject,
-        message,
-        status,
-        sentAt: status === NotificationStatus.SENT ? new Date() : null,
-        errorMessage,
-      },
-    });
-
-    if (applicant.telegramUsername) {
-      await db.notificationDispatch.create({
-        data: {
-          applicantId: applicant.id,
-          channel: NotificationChannel.TELEGRAM,
-          kind: NotificationKind.ROOM_INVITATION,
-          recipient: applicant.telegramUsername,
-          subject: "Telegram бэлэн",
-          message,
-          status: NotificationStatus.SKIPPED,
-          errorMessage: "Telegram Bot API бүтэц бэлэн, v1 дээр автоматаар илгээгээгүй.",
-        },
-      });
-    }
-
-    await db.applicant.update({
-      where: { id: applicant.id },
-      data: {
-        status: ApplicantStatus.INVITATION_SENT,
-        invitationSentAt: new Date(),
-      },
-    });
-  }
-
-  return applicants.length;
 }

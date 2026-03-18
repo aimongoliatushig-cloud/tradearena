@@ -1,7 +1,9 @@
-import { ApplicantStatus, RoomLifecycleStatus, RoomPublicStatus, type ChallengeRoom } from "@prisma/client";
+import { AccountSize, ApplicantStatus, ChallengeStep, RoomLifecycleStatus, RoomPublicStatus, type ChallengeRoom } from "@prisma/client";
 
 import { db } from "@/lib/db";
 import { leaderboardTraderOrderBy } from "@/lib/leaderboard";
+import { accountSizeLabels } from "@/lib/labels";
+import { getDefaultEntryFeeUsd } from "@/lib/pricing";
 import { normalizeFtmoUrl, parseScheduleInput } from "@/lib/validators";
 import { recomputeRoomLeaderboard } from "@/server/services/leaderboard-service";
 import { getDefaultScheduleConfig } from "@/server/services/settings-service";
@@ -12,6 +14,7 @@ export async function upsertRoom(input: {
   description?: string;
   accountSize: ChallengeRoom["accountSize"];
   step: ChallengeRoom["step"];
+  entryFeeUsd: number;
   startDate: Date;
   endDate: Date;
   publicStatus: RoomPublicStatus;
@@ -30,6 +33,7 @@ export async function upsertRoom(input: {
     description: input.description || null,
     accountSize: input.accountSize,
     step: input.step,
+    entryFeeUsd: input.entryFeeUsd,
     startDate: input.startDate,
     endDate: input.endDate,
     publicStatus: input.publicStatus,
@@ -59,6 +63,9 @@ export async function listPublicRooms() {
   const rooms = await db.challengeRoom.findMany({
     where: {
       publicStatus: RoomPublicStatus.PUBLIC,
+      lifecycleStatus: {
+        in: [RoomLifecycleStatus.ACTIVE, RoomLifecycleStatus.EXPIRED, RoomLifecycleStatus.COMPLETED, RoomLifecycleStatus.ARCHIVED],
+      },
     },
     include: {
       traders: {
@@ -72,10 +79,12 @@ export async function listPublicRooms() {
 }
 
 export async function listSignupRooms() {
+  await ensureSignupRooms();
+
   const rooms = await db.challengeRoom.findMany({
     where: {
       publicStatus: RoomPublicStatus.PUBLIC,
-      lifecycleStatus: RoomLifecycleStatus.ACTIVE,
+      lifecycleStatus: RoomLifecycleStatus.SIGNUP_OPEN,
     },
     include: {
       applicants: {
@@ -96,6 +105,7 @@ export async function listSignupRooms() {
     slug: room.slug,
     accountSize: room.accountSize,
     step: room.step,
+    entryFeeUsd: room.entryFeeUsd || getDefaultEntryFeeUsd(room.accountSize),
     maxTraderCapacity: room.maxTraderCapacity,
     activeApplicantCount: room.applicants.length,
   }));
@@ -139,6 +149,15 @@ export async function getPublicRoomDetail(roomIdOrSlug: string) {
   return db.challengeRoom.findFirst({
     where: {
       publicStatus: RoomPublicStatus.PUBLIC,
+      lifecycleStatus: {
+        in: [
+          RoomLifecycleStatus.READY_TO_START,
+          RoomLifecycleStatus.ACTIVE,
+          RoomLifecycleStatus.EXPIRED,
+          RoomLifecycleStatus.COMPLETED,
+          RoomLifecycleStatus.ARCHIVED,
+        ],
+      },
       OR: [{ id: roomIdOrSlug }, { slug: roomIdOrSlug }],
     },
     include: {
@@ -288,6 +307,65 @@ export async function deleteTrader(traderId: string) {
   });
 
   await recomputeRoomLeaderboard(trader.roomId);
+}
+
+export async function ensureSignupRooms() {
+  await Promise.all(Object.values(AccountSize).map((accountSize) => ensureOpenSignupRoom(accountSize)));
+}
+
+export async function ensureOpenSignupRoom(
+  accountSize: AccountSize,
+  template?: Partial<
+    Pick<
+      ChallengeRoom,
+      "description" | "entryFeeUsd" | "maxTraderCapacity" | "step" | "updateTimes" | "updateTimezone" | "allowExpiredUpdates"
+    >
+  >,
+) {
+  const existingRoom = await db.challengeRoom.findFirst({
+    where: {
+      accountSize,
+      publicStatus: RoomPublicStatus.PUBLIC,
+      lifecycleStatus: RoomLifecycleStatus.SIGNUP_OPEN,
+    },
+    orderBy: [{ createdAt: "asc" }],
+  });
+
+  if (existingRoom) {
+    return existingRoom;
+  }
+
+  const defaultSchedule = await getDefaultScheduleConfig();
+  const now = new Date();
+  const endDate = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+  const roomCount = await db.challengeRoom.count({
+    where: {
+      accountSize,
+      lifecycleStatus: {
+        in: [RoomLifecycleStatus.SIGNUP_OPEN, RoomLifecycleStatus.READY_TO_START],
+      },
+    },
+  });
+  const title = `${accountSizeLabels[accountSize]} Trader Room ${roomCount + 1}`;
+
+  return db.challengeRoom.create({
+    data: {
+      title,
+      slug: `${slugify(title)}-${Date.now().toString(36)}`,
+      description: template?.description ?? `${accountSizeLabels[accountSize]} signup room.`,
+      accountSize,
+      step: template?.step ?? ChallengeStep.STEP_1,
+      entryFeeUsd: template?.entryFeeUsd ?? getDefaultEntryFeeUsd(accountSize),
+      startDate: now,
+      endDate,
+      publicStatus: RoomPublicStatus.PUBLIC,
+      lifecycleStatus: RoomLifecycleStatus.SIGNUP_OPEN,
+      maxTraderCapacity: template?.maxTraderCapacity ?? 10,
+      updateTimes: template?.updateTimes?.length ? template.updateTimes : defaultSchedule.updateTimes,
+      updateTimezone: template?.updateTimezone ?? defaultSchedule.timezone,
+      allowExpiredUpdates: template?.allowExpiredUpdates ?? false,
+    },
+  });
 }
 
 export function sortRooms(

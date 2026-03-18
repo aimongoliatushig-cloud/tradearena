@@ -1,86 +1,75 @@
 export const dynamic = "force-dynamic";
 
+import { auth, currentUser } from "@clerk/nextjs/server";
 import { Landmark, ReceiptText } from "lucide-react";
 
 import { ApplyForm } from "@/components/forms/apply-form";
 import { PublicShell } from "@/components/layout/public-shell";
 import { MetricCard } from "@/components/shared/metric-card";
 import { accountSizeLabels } from "@/lib/labels";
-import { formatUsd, TRADEARENA_ENTRY_FEES, TRADEARENA_PAYMENT_DETAILS } from "@/lib/pricing";
-import { getApplicantBuckets } from "@/server/services/applicant-service";
+import { formatUsd } from "@/lib/pricing";
+import { getPaymentDetailsConfig } from "@/server/services/settings-service";
 import { listSignupRooms } from "@/server/services/room-service";
 
 export default async function ApplyPage() {
-  const [buckets, signupRooms] = await Promise.all([getApplicantBuckets(), listSignupRooms()]);
-  const entryFees = buckets
-    .map((bucket) => {
-      const label = accountSizeLabels[bucket.accountSize];
-      const fee = TRADEARENA_ENTRY_FEES[label];
+  const { userId } = await auth();
+  const [signupRooms, paymentDetails, user] = await Promise.all([
+    listSignupRooms(),
+    getPaymentDetailsConfig(),
+    userId ? currentUser() : Promise.resolve(null),
+  ]);
 
-      if (!fee) {
-        return null;
+  const viewer = user
+    ? {
+        fullName: [user.firstName, user.lastName].filter(Boolean).join(" ") || user.username || "",
+        email: user.primaryEmailAddress?.emailAddress ?? "",
       }
-
-      return {
-        accountSize: bucket.accountSize,
-        label,
-        fee,
-      };
-    })
-    .filter((entry): entry is NonNullable<typeof entry> => entry !== null);
+    : null;
 
   return (
     <PublicShell>
       <section className="grid gap-8 lg:grid-cols-[0.92fr_1.08fr]">
         <div className="space-y-6">
           <div className="glass-panel p-8">
-            <div className="ftmo-kicker">Application</div>
-            <h1 className="mt-4 text-4xl font-semibold tracking-[-0.04em] text-white">Сорилтын өрөөнд өргөдөл өгөх</h1>
+            <div className="ftmo-kicker">Room Signup</div>
+            <h1 className="mt-4 text-4xl font-semibold tracking-[-0.04em] text-white">Join the next trader room</h1>
             <p className="mt-3 max-w-xl text-sm leading-7 text-white/58">
-              Та шууд өрөөнд орохгүй. Эхлээд дансны хэмжээ сонгож өргөдөл илгээнэ, дараа нь админ шалгаж урилга илгээнэ.
+              Sign up with Clerk first, then choose one of the open rooms. Running rooms are closed for new registrations. When a room
+              reaches 10 traders, we will email everyone with the payment details and the start instructions.
             </p>
           </div>
 
           <div className="grid gap-4">
-            {buckets.map((bucket) => (
+            {signupRooms.map((room) => (
               <MetricCard
-                key={bucket.accountSize}
-                label={`${accountSizeLabels[bucket.accountSize]} ангилал`}
-                value={`${bucket.active}/10`}
-                hint={bucket.ready ? "Өрөө бүрдэхэд бэлэн" : "Хүсэлт цугларч байна"}
+                key={room.id}
+                label={`${accountSizeLabels[room.accountSize]} room`}
+                value={`${room.activeApplicantCount}/${room.maxTraderCapacity}`}
+                hint={`Entry fee ${formatUsd(room.entryFeeUsd)}`}
               />
             ))}
           </div>
 
           <div className="glass-panel p-6">
-            <div className="ftmo-kicker">Payment Info</div>
-            <h2 className="mt-4 text-2xl font-semibold tracking-[-0.03em] text-white">Room 10/10 болсны дараах төлбөрийн мэдээлэл</h2>
+            <div className="ftmo-kicker">Entry Payment</div>
+            <h2 className="mt-4 text-2xl font-semibold tracking-[-0.03em] text-white">Payment is only due when the room is full</h2>
             <p className="mt-3 text-sm leading-7 text-white/58">
-              Таны сонгосон ангиллын room 10 трейдерээр бүрдвэл тухайн room-ийн entry fee-г төлж оролцоогоо баталгаажуулна. Төлбөрийн дүн нь нүүр
-              хуудасны үнэтэй ижил байна.
+              You do not pay immediately. First you join an open room. Once that room reaches 10/10 traders, we email you that the room
+              is ready, ask you to pay the entry fee, and prepare you to start the challenge.
             </p>
-
-            <div className="mt-5 grid gap-3 sm:grid-cols-2">
-              {entryFees.map((entry) => (
-                <div key={entry.accountSize} className="rounded-[1.4rem] border border-white/10 bg-white/[0.03] px-4 py-4">
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/48">{entry.label} entry fee</div>
-                  <div className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-white">{formatUsd(entry.fee)}</div>
-                </div>
-              ))}
-            </div>
 
             <div className="mt-5 grid gap-3">
               <div className="rounded-[1.4rem] border border-[#3daafe]/18 bg-[#0781fe]/10 p-4">
                 <div className="flex items-start gap-3">
                   <Landmark className="mt-0.5 size-5 text-[#83c5ff]" />
                   <div>
-                    <div className="text-sm font-semibold text-white">Төлбөр хийх данс</div>
+                    <div className="text-sm font-semibold text-white">Bank details</div>
                     <div className="mt-2 text-sm leading-7 text-white/72">
-                      {TRADEARENA_PAYMENT_DETAILS.accountNumber}
+                      {paymentDetails.accountNumber}
                       <br />
-                      {TRADEARENA_PAYMENT_DETAILS.bankName}
+                      {paymentDetails.bankName}
                       <br />
-                      {TRADEARENA_PAYMENT_DETAILS.accountHolder}
+                      {paymentDetails.accountHolder}
                     </div>
                   </div>
                 </div>
@@ -90,8 +79,8 @@ export default async function ApplyPage() {
                 <div className="flex items-start gap-3">
                   <ReceiptText className="mt-0.5 size-5 text-[#83c5ff]" />
                   <div>
-                    <div className="text-sm font-semibold text-white">Гүйлгээний утга</div>
-                    <div className="mt-2 text-sm leading-7 text-white/62">{TRADEARENA_PAYMENT_DETAILS.transactionValueHint}</div>
+                    <div className="text-sm font-semibold text-white">Payment reference</div>
+                    <div className="mt-2 text-sm leading-7 text-white/62">{paymentDetails.transactionValueHint}</div>
                   </div>
                 </div>
               </div>
@@ -99,7 +88,7 @@ export default async function ApplyPage() {
           </div>
         </div>
 
-        <ApplyForm rooms={signupRooms} />
+        <ApplyForm rooms={signupRooms} viewer={viewer} />
       </section>
     </PublicShell>
   );

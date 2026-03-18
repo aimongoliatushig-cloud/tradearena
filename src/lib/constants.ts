@@ -5,9 +5,12 @@ export const ACCOUNT_SIZE_OPTIONS = [
   AccountSize.SIZE_25K,
   AccountSize.SIZE_50K,
   AccountSize.SIZE_100K,
+  AccountSize.SIZE_200K,
 ] as const;
 
 export const ROOM_STATUS_OPTIONS = [
+  RoomLifecycleStatus.SIGNUP_OPEN,
+  RoomLifecycleStatus.READY_TO_START,
   RoomLifecycleStatus.ACTIVE,
   RoomLifecycleStatus.EXPIRED,
   RoomLifecycleStatus.COMPLETED,

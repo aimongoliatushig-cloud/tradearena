@@ -7,6 +7,8 @@ import { env } from "@/lib/env";
 import { formatCurrency, formatDateTime, formatPercent } from "@/lib/format";
 import { leaderboardTraderOrderBy } from "@/lib/leaderboard";
 import { accountSizeLabels, stepLabels } from "@/lib/labels";
+import { formatUsd } from "@/lib/pricing";
+import { getPaymentDetailsConfig, getRoomReadyEmailConfig } from "@/server/services/settings-service";
 
 const ROOM_EMAIL_RECIPIENT_STATUSES = [
   ApplicantStatus.PENDING,
@@ -67,10 +69,10 @@ async function sendLoggedEmail(input: {
       status = NotificationStatus.SENT;
     } catch (error) {
       status = NotificationStatus.FAILED;
-      errorMessage = error instanceof Error ? error.message : "Имэйл илгээх үед алдаа гарлаа.";
+      errorMessage = error instanceof Error ? error.message : "Email send failed.";
     }
   } else {
-    errorMessage = "SMTP тохируулаагүй байна.";
+    errorMessage = "SMTP is not configured.";
   }
 
   await db.notificationDispatch.create({
@@ -109,6 +111,25 @@ async function listRoomEmailRecipients(roomId: string, excludeApplicantId?: stri
   });
 }
 
+export async function listRecentNotificationDispatches(limit = 25) {
+  return db.notificationDispatch.findMany({
+    orderBy: { createdAt: "desc" },
+    take: limit,
+    include: {
+      applicant: {
+        select: {
+          fullName: true,
+        },
+      },
+      room: {
+        select: {
+          title: true,
+        },
+      },
+    },
+  });
+}
+
 export async function sendSignupNotifications(applicantId: string) {
   const applicant = await db.applicant.findUnique({
     where: { id: applicantId },
@@ -122,49 +143,86 @@ export async function sendSignupNotifications(applicantId: string) {
   }
 
   const transporter = createTransporter();
-  const roomUrl = buildRoomUrl(applicant.room.slug);
 
   await sendLoggedEmail({
     applicantId: applicant.id,
     roomId: applicant.room.id,
     kind: NotificationKind.GENERAL_UPDATE,
     recipient: applicant.email,
-    subject: `${applicant.room.title} өрөөний бүртгэл хүлээн авлаа`,
+    subject: `${applicant.room.title} signup received`,
     message: [
-      `Сайн байна уу, ${applicant.fullName}.`,
+      `Hello ${applicant.fullName},`,
       "",
-      `Таны "${applicant.room.title}" өрөөний бүртгэлийг амжилттай хүлээн авлаа.`,
-      `Өрөөний хэмжээ: ${accountSizeLabels[applicant.room.accountSize]}`,
-      `Алхам: ${stepLabels[applicant.room.step]}`,
-      `Өрөөний холбоос: ${roomUrl}`,
+      `Your signup for ${applicant.room.title} has been received.`,
+      `Account size: ${accountSizeLabels[applicant.room.accountSize]}`,
+      `Challenge step: ${stepLabels[applicant.room.step]}`,
       "",
-      "Өрөөнд шинэ гишүүн нэмэгдэх болон 09:00, 21:00 цагийн гүйцэтгэлийн тайланг энэ имэйлээр илгээх болно.",
+      `Once the room reaches ${applicant.room.maxTraderCapacity} traders, we will contact you to pay the entry fee and start the challenge.`,
       "",
-      "TradeArena баг",
+      "TradeArena team",
     ].join("\n"),
     transporter,
   });
+}
 
-  const otherApplicants = await listRoomEmailRecipients(applicant.room.id, applicant.id);
+export async function sendRoomReadyNotifications(roomId: string) {
+  const [room, template, paymentDetails] = await Promise.all([
+    db.challengeRoom.findUnique({
+      where: { id: roomId },
+      select: {
+        id: true,
+        title: true,
+        slug: true,
+        accountSize: true,
+        step: true,
+        entryFeeUsd: true,
+      },
+    }),
+    getRoomReadyEmailConfig(),
+    getPaymentDetailsConfig(),
+  ]);
 
-  for (const recipient of otherApplicants) {
+  if (!room) {
+    return;
+  }
+
+  const recipients = await listRoomEmailRecipients(roomId);
+  if (!recipients.length) {
+    return;
+  }
+
+  const transporter = createTransporter();
+
+  for (const recipient of recipients) {
+    const subject = template.subject.replaceAll("{roomTitle}", room.title);
+    const message = template.message
+      .replaceAll("{fullName}", recipient.fullName)
+      .replaceAll("{roomTitle}", room.title)
+      .replaceAll("{roomSize}", accountSizeLabels[room.accountSize])
+      .replaceAll("{step}", stepLabels[room.step])
+      .replaceAll("{entryFee}", formatUsd(room.entryFeeUsd))
+      .replaceAll("{bankName}", paymentDetails.bankName)
+      .replaceAll("{accountHolder}", paymentDetails.accountHolder)
+      .replaceAll("{accountNumber}", paymentDetails.accountNumber)
+      .replaceAll("{transactionValueHint}", paymentDetails.transactionValueHint)
+      .replaceAll("{roomUrl}", buildRoomUrl(room.slug));
+
     await sendLoggedEmail({
       applicantId: recipient.id,
-      roomId: applicant.room.id,
-      kind: NotificationKind.GENERAL_UPDATE,
+      roomId: room.id,
+      kind: NotificationKind.ROOM_READY,
       recipient: recipient.email,
-      subject: `${applicant.room.title} өрөөнд шинэ гишүүн нэмэгдлээ`,
-      message: [
-        `Сайн байна уу, ${recipient.fullName}.`,
-        "",
-        `"${applicant.room.title}" өрөөнд ${applicant.fullName} шинээр бүртгүүллээ.`,
-        `Өрөөний холбоос: ${roomUrl}`,
-        "",
-        "Өрөөний бүрэлдэхүүн шинэчлэгдсэн тул дараагийн тайлангуудаа имэйлээр авч байх болно.",
-        "",
-        "TradeArena баг",
-      ].join("\n"),
+      subject,
+      message,
       transporter,
+    });
+
+    await db.applicant.update({
+      where: { id: recipient.id },
+      data: {
+        status: ApplicantStatus.INVITATION_SENT,
+        invitationSentAt: new Date(),
+      },
     });
   }
 }
@@ -199,7 +257,7 @@ export async function sendRoomPerformanceReportIfDue(roomId: string, minuteKey: 
     return false;
   }
 
-  const subject = `${room.title} өрөөний тайлан • ${localMinute.format("YYYY.MM.DD HH:mm")}`;
+  const subject = `${room.title} performance report ${localMinute.format("YYYY.MM.DD HH:mm")}`;
   const existingDispatch = await db.notificationDispatch.findFirst({
     where: {
       roomId,
@@ -232,23 +290,23 @@ export async function sendRoomPerformanceReportIfDue(roomId: string, minuteKey: 
           .map((trader, index) => {
             const parts = [
               `${index + 1}. ${trader.fullName}`,
-              `   Ашиг: ${formatPercent(trader.currentProfitPercent)}`,
+              `   Profit: ${formatPercent(trader.currentProfitPercent)}`,
               `   Balance: ${formatCurrency(trader.currentBalance)}`,
               `   Equity: ${formatCurrency(trader.currentEquity)}`,
             ];
 
             if (trader.violationFlag) {
-              parts.push(`   Тэмдэглэл: ${trader.violationReason ?? "Зөрчилтэй"}`);
+              parts.push(`   Risk note: ${trader.violationReason ?? "Violation flagged"}`);
             }
 
             if (trader.latestSnapshotAt) {
-              parts.push(`   Сүүлд шинэчилсэн: ${formatDateTime(trader.latestSnapshotAt)}`);
+              parts.push(`   Updated: ${formatDateTime(trader.latestSnapshotAt)}`);
             }
 
             return parts.join("\n");
           })
           .join("\n\n")
-      : "Одоогоор энэ өрөөний трейдерийн шинэ дата байхгүй байна.";
+      : "No fresh trader data is available for this room yet.";
 
   for (const applicant of room.applicants) {
     await sendLoggedEmail({
@@ -258,17 +316,17 @@ export async function sendRoomPerformanceReportIfDue(roomId: string, minuteKey: 
       recipient: applicant.email,
       subject,
       message: [
-        `Сайн байна уу, ${applicant.fullName}.`,
+        `Hello ${applicant.fullName},`,
         "",
-        `"${room.title}" өрөөний ${localMinute.format("YYYY.MM.DD HH:mm")}-ийн гүйцэтгэлийн тайланг хүргэж байна.`,
-        `Өрөөний хэмжээ: ${accountSizeLabels[room.accountSize]}`,
-        `Алхам: ${stepLabels[room.step]}`,
-        `Өрөөний холбоос: ${roomUrl}`,
-        `Сүүлийн шинэчлэгдсэн дата: ${formatDateTime(latestSnapshotAt)}`,
+        `${room.title} performance report for ${localMinute.format("YYYY.MM.DD HH:mm")}.`,
+        `Account size: ${accountSizeLabels[room.accountSize]}`,
+        `Challenge step: ${stepLabels[room.step]}`,
+        `Room page: ${roomUrl}`,
+        `Latest update: ${formatDateTime(latestSnapshotAt)}`,
         "",
         traderSummary,
         "",
-        "TradeArena баг",
+        "TradeArena team",
       ].join("\n"),
       transporter,
     });

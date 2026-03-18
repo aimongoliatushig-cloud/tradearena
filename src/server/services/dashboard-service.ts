@@ -62,11 +62,12 @@ export async function getDashboardSummary() {
   return {
     rooms,
     roomTotals: {
-      active: rooms.filter((room) => room.lifecycleStatus === RoomLifecycleStatus.ACTIVE).length,
-      history: rooms.filter((room) => room.lifecycleStatus !== RoomLifecycleStatus.ACTIVE).length,
+      running: rooms.filter((room) => room.lifecycleStatus === RoomLifecycleStatus.ACTIVE).length,
+      signupOpen: rooms.filter((room) => room.lifecycleStatus === RoomLifecycleStatus.SIGNUP_OPEN).length,
+      readyToStart: rooms.filter((room) => room.lifecycleStatus === RoomLifecycleStatus.READY_TO_START).length,
       traders: traderCount,
       pendingApplicants: applicantCounts[ApplicantStatus.PENDING] ?? 0,
-      acceptedApplicants: applicantCounts[ApplicantStatus.ACCEPTED] ?? 0,
+      contactedApplicants: applicantCounts[ApplicantStatus.INVITATION_SENT] ?? 0,
     },
     alertLogs,
     latestLogs: recentLogs.slice(0, 10),

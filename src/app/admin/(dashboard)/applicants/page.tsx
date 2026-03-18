@@ -1,14 +1,35 @@
 export const dynamic = "force-dynamic";
 
 import Link from "next/link";
-import { AccountSize, ApplicantStatus } from "@prisma/client";
+import { AccountSize, ApplicantStatus, NotificationStatus } from "@prisma/client";
 
 import { FlashMessage } from "@/components/shared/flash-message";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { SubmitButton } from "@/components/forms/submit-button";
-import { accountSizeLabels, applicantStatusLabels } from "@/lib/labels";
+import {
+  accountSizeLabels,
+  applicantStatusLabels,
+  notificationChannelLabels,
+  notificationKindLabels,
+  notificationStatusLabels,
+} from "@/lib/labels";
+import { formatDateTime } from "@/lib/format";
 import { getApplicantBuckets, listApplicants } from "@/server/services/applicant-service";
-import { sendInvitationsAction, updateApplicantStatusAction } from "@/server/actions/admin-actions";
+import { listRecentNotificationDispatches } from "@/server/services/notification-service";
+import { updateApplicantStatusAction } from "@/server/actions/admin-actions";
+
+function getNotificationTone(status: NotificationStatus) {
+  switch (status) {
+    case NotificationStatus.SENT:
+      return "success";
+    case NotificationStatus.FAILED:
+      return "danger";
+    case NotificationStatus.SKIPPED:
+      return "warning";
+    default:
+      return "muted";
+  }
+}
 
 export default async function AdminApplicantsPage({
   searchParams,
@@ -17,13 +38,19 @@ export default async function AdminApplicantsPage({
 }) {
   const flash = await searchParams;
   const filterSize = typeof flash.size === "string" ? (flash.size as AccountSize) : undefined;
-  const [buckets, applicants] = await Promise.all([getApplicantBuckets(), listApplicants(filterSize)]);
+  const [buckets, applicants, recentNotifications] = await Promise.all([
+    getApplicantBuckets(),
+    listApplicants(filterSize),
+    listRecentNotificationDispatches(),
+  ]);
 
   return (
     <section className="space-y-6">
       <div>
-        <h1 className="text-3xl font-semibold text-white">Өргөдлийн удирдлага</h1>
-        <p className="mt-2 text-sm text-white/60">Дансны хэмжээний ангиллаар шүүж, төлөв шинэчилж, 10 хүрэхэд урилга боловсруулах боломжтой.</p>
+        <h1 className="text-3xl font-semibold text-white">Applicants</h1>
+        <p className="mt-2 text-sm text-white/60">
+          Track signup queues, update applicant status, and review every email that was generated for room signup and room-ready events.
+        </p>
       </div>
 
       <FlashMessage
@@ -33,7 +60,7 @@ export default async function AdminApplicantsPage({
 
       <div className="flex flex-wrap gap-3">
         <Link href="/admin/applicants" className="rounded-full border border-white/12 px-4 py-2 text-sm text-white/70 hover:bg-white/5">
-          Бүгд
+          All
         </Link>
         {Object.values(AccountSize).map((size) => (
           <Link
@@ -53,39 +80,48 @@ export default async function AdminApplicantsPage({
           <div key={bucket.accountSize} className="glass-panel p-5">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <div className="text-lg font-semibold text-white">{accountSizeLabels[bucket.accountSize]} ангилал</div>
+                <div className="text-lg font-semibold text-white">{accountSizeLabels[bucket.accountSize]} queue</div>
                 <div className="text-sm text-white/55">
-                  Идэвхтэй: {bucket.active} | Зөвшөөрсөн: {bucket.accepted}
+                  Active signups: {bucket.active} | Contacted: {bucket.accepted}
                 </div>
               </div>
-              <StatusBadge label={bucket.ready ? "Өрөө бэлэн" : "Хүлээлттэй"} tone={bucket.ready ? "success" : "warning"} />
+              <StatusBadge label={bucket.ready ? "Room ready" : "Waiting for 10/10"} tone={bucket.ready ? "success" : "warning"} />
             </div>
-
-            <form action={sendInvitationsAction} className="mt-4 space-y-3">
-              <input type="hidden" name="accountSize" value={bucket.accountSize} />
-              <input type="hidden" name="returnPath" value="/admin/applicants" />
-              <input
-                name="subject"
-                defaultValue={bucket.template.subject}
-                className="flex h-10 w-full rounded-2xl border border-white/12 bg-slate-950/60 px-4 text-white outline-none"
-              />
-              <input
-                name="roomLink"
-                placeholder="https://your-room-link"
-                className="flex h-10 w-full rounded-2xl border border-white/12 bg-slate-950/60 px-4 text-white outline-none"
-              />
-              <textarea
-                name="extraInstructions"
-                defaultValue="Өрөөний заавар, Discord/Telegram холбоос, эхлэх хугацааг энд оруулна."
-                rows={3}
-                className="w-full rounded-2xl border border-white/12 bg-slate-950/60 px-4 py-3 text-white outline-none"
-              />
-              <SubmitButton className="w-full justify-center" variant="secondary">
-                Энэ ангиллын урилга боловсруулах
-              </SubmitButton>
-            </form>
           </div>
         ))}
+      </div>
+
+      <div className="glass-panel p-6">
+        <div className="mb-4">
+          <h2 className="text-xl font-semibold text-white">Recent notifications</h2>
+          <p className="mt-1 text-sm text-white/55">Every generated email is logged here for admin review.</p>
+        </div>
+
+        <div className="space-y-3">
+          {recentNotifications.length ? (
+            recentNotifications.map((notification) => (
+              <div key={notification.id} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="space-y-1">
+                    <div className="font-medium text-white">{notification.subject ?? notificationKindLabels[notification.kind]}</div>
+                    <div className="text-sm text-white/55">
+                      {notification.recipient} | {notification.room?.title ?? "-"} | {notification.applicant?.fullName ?? "-"}
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <StatusBadge label={notificationChannelLabels[notification.channel]} tone="info" />
+                    <StatusBadge label={notificationKindLabels[notification.kind]} tone="muted" />
+                    <StatusBadge label={notificationStatusLabels[notification.status]} tone={getNotificationTone(notification.status)} />
+                  </div>
+                </div>
+                <div className="mt-3 whitespace-pre-line text-sm leading-6 text-white/62">{notification.message}</div>
+                <div className="mt-3 text-xs text-white/40">{formatDateTime(notification.createdAt)}</div>
+              </div>
+            ))
+          ) : (
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-white/60">No notifications have been logged yet.</div>
+          )}
+        </div>
       </div>
 
       <div className="space-y-3">
@@ -95,7 +131,7 @@ export default async function AdminApplicantsPage({
               <div>
                 <div className="text-lg font-semibold text-white">{applicant.fullName}</div>
                 <div className="mt-1 text-sm text-white/55">
-                  {applicant.email} | {applicant.phoneNumber} | {applicant.telegramUsername || "Telegram мэдээлэлгүй"}
+                  {applicant.email} | {applicant.phoneNumber} | {applicant.telegramUsername || "No Telegram"}
                 </div>
                 <div className="mt-1 text-sm text-white/45">{applicant.room?.title ?? "Room not selected"}</div>
                 <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -118,7 +154,7 @@ export default async function AdminApplicantsPage({
                     </option>
                   ))}
                 </select>
-                <SubmitButton size="sm">Төлөв хадгалах</SubmitButton>
+                <SubmitButton size="sm">Save status</SubmitButton>
               </form>
             </div>
           </div>

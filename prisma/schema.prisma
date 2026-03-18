@@ -11,6 +11,7 @@ enum AccountSize {
   SIZE_25K
   SIZE_50K
   SIZE_100K
+  SIZE_200K
 }
 
 enum ChallengeStep {
@@ -24,6 +25,8 @@ enum RoomPublicStatus {
 }
 
 enum RoomLifecycleStatus {
+  SIGNUP_OPEN
+  READY_TO_START
   ACTIVE
   EXPIRED
   COMPLETED
@@ -67,6 +70,7 @@ enum NotificationChannel {
 
 enum NotificationKind {
   ROOM_INVITATION
+  ROOM_READY
   GENERAL_UPDATE
 }
 
@@ -107,6 +111,7 @@ model ChallengeRoom {
   description         String?
   accountSize         AccountSize
   step                ChallengeStep
+  entryFeeUsd         Float               @default(0)
   startDate           DateTime
   endDate             DateTime
   publicStatus        RoomPublicStatus    @default(PUBLIC)
@@ -179,8 +184,9 @@ model TraderSnapshot {
 model Applicant {
   id                 String               @id @default(cuid())
   roomId             String?
+  clerkUserId        String?
   fullName           String
-  email              String               @unique
+  email              String
   phoneNumber        String
   telegramUsername   String?
   desiredAccountSize AccountSize
@@ -194,6 +200,8 @@ model Applicant {
   notifications      NotificationDispatch[]
 
   @@index([desiredAccountSize, status])
+  @@index([clerkUserId, desiredAccountSize, status])
+  @@index([roomId, status])
   @@index([email, createdAt])
 }
 

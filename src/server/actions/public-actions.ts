@@ -1,5 +1,6 @@
 "use server";
 
+import { auth } from "@clerk/nextjs/server";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 
@@ -8,19 +9,24 @@ import type { ActionState } from "@/server/actions/action-state";
 import { createApplicant } from "@/server/services/applicant-service";
 
 function getClientIp(headerStore: Headers) {
-  return (
-    headerStore.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    headerStore.get("x-real-ip") ||
-    "127.0.0.1"
-  );
+  return headerStore.get("x-forwarded-for")?.split(",")[0]?.trim() || headerStore.get("x-real-ip") || "127.0.0.1";
 }
 
 export async function submitApplicantAction(_: ActionState, formData: FormData): Promise<ActionState> {
+  const { userId } = await auth();
+
+  if (!userId) {
+    return {
+      status: "error",
+      message: "Please sign in before joining a room.",
+    };
+  }
+
   const parsed = applicantFormSchema.safeParse({
     fullName: formData.get("fullName"),
     email: formData.get("email"),
     phoneNumber: formData.get("phoneNumber"),
-    telegramUsername: formData.get("telegramUsername") || undefined,
+    telegramUsername: formData.get("telegramUsername"),
     roomId: formData.get("roomId"),
     note: formData.get("note") || undefined,
   });
@@ -28,7 +34,7 @@ export async function submitApplicantAction(_: ActionState, formData: FormData):
   if (!parsed.success) {
     return {
       status: "error",
-      message: "Маягтын мэдээллээ шалгана уу.",
+      message: "Please review the form fields.",
       fieldErrors: parsed.error.flatten().fieldErrors,
     };
   }
@@ -36,20 +42,22 @@ export async function submitApplicantAction(_: ActionState, formData: FormData):
   try {
     const headerStore = await headers();
     await createApplicant({
+      clerkUserId: userId,
       ...parsed.data,
       ipAddress: getClientIp(headerStore),
     });
 
+    revalidatePath("/apply");
     revalidatePath("/admin/applicants");
 
     return {
       status: "success",
-      message: "Таны хүсэлтийг хүлээн авлаа. Админ удахгүй холбогдоно.",
+      message: "Your signup was received. When the room reaches 10 traders, we will email you to pay the entry fee and prepare to start.",
     };
   } catch (error) {
     return {
       status: "error",
-      message: error instanceof Error ? error.message : "Илгээх үед алдаа гарлаа.",
+      message: error instanceof Error ? error.message : "Failed to submit your signup.",
     };
   }
 }
