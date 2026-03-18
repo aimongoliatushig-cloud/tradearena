@@ -14,8 +14,6 @@
     "worker": "tsx src/workers/runner.ts",
     "jobs:run-now": "tsx src/workers/run-now.ts",
     "refresh:room": "tsx src/workers/refresh-room.ts",
-    
-  "vercel-build": "next build",
     "postinstall": "prisma generate"
   },
   "prisma": {
@@ -46,7 +44,7 @@
     "node-cron": "^4.2.1",
     "nodemailer": "^8.0.2",
     "pg": "^8.20.0",
-    "playwright": "^1.58.2",
+    "playwright-core": "^1.58.2",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-hook-form": "^7.71.2",
@@ -70,5 +68,4 @@
     "tsx": "^4.21.0",
     "typescript": "^5"
   }
-  
 }

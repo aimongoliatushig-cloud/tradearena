@@ -70,7 +70,7 @@ npm run db:seed
 6. Playwright browser суулгана.
 
 ```bash
-npm run playwright:install
+npx playwright-core install chromium
 ```
 
 7. App-аа асаана.

@@ -1,5 +1,5 @@
 import type { Prisma } from "@prisma/client";
-import { Browser, type Page, chromium } from "playwright";
+import { Browser, type Page, chromium } from "playwright-core";
 
 import { env } from "@/lib/env";
 
@@ -94,7 +94,7 @@ function normalizeScrapeError(error: unknown) {
   }
 
   if (error.message.includes("Executable doesn't exist")) {
-    return new Error("Playwright browser is not installed. Run `npm run playwright:install`.");
+    return new Error("Chromium is not installed in this environment. Install it only on the worker host with `npx playwright-core install chromium`.");
   }
 
   if (error.message.includes("Target page, context or browser has been closed")) {
