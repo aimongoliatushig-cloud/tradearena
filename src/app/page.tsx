@@ -11,6 +11,7 @@ import { DEFAULT_TARGET_PERCENT } from "@/lib/constants";
 import { buildProgressValue, formatPercent } from "@/lib/format";
 import { sortTradersForLeaderboard } from "@/lib/leaderboard";
 import { accountSizeLabels } from "@/lib/labels";
+import { formatUsd, getDefaultEntryFeeUsd } from "@/lib/pricing";
 import { cn } from "@/lib/utils";
 import { getApplicantBuckets } from "@/server/services/applicant-service";
 import { getPublicHomepageData } from "@/server/services/room-service";
@@ -68,7 +69,9 @@ export default async function HomePage() {
   });
 
   const registrationSummaries = applicantBuckets.map((bucket) => ({
+    accountSize: bucket.accountSize,
     accountSizeLabel: accountSizeLabels[bucket.accountSize],
+    entryFeeUsd: getDefaultEntryFeeUsd(bucket.accountSize),
     interestedCount: bucket.active,
     remainingCount: Math.max(0, 10 - bucket.active),
     ready: bucket.ready,
@@ -246,10 +249,11 @@ export default async function HomePage() {
 
                 <div className="grid gap-3">
                   {registrationSummaries.map((bucket) => (
-                    <div key={bucket.accountSizeLabel} className="rounded-[1.35rem] border border-white/10 bg-black/14 px-4 py-3.5">
-                      <div className="flex items-center justify-between gap-4">
+                    <div key={bucket.accountSize} className="rounded-[1.35rem] border border-white/10 bg-black/14 px-4 py-3.5">
+                      <div className="flex items-start justify-between gap-4">
                         <div>
                           <div className="text-sm font-semibold text-white">{bucket.accountSizeLabel} өрөө нээлттэй</div>
+                          <div className="mt-1 text-xs text-[#95e8d5]">Орох хураамж {formatUsd(bucket.entryFeeUsd)}</div>
                           <div className="mt-1 text-xs text-white/46">
                             {bucket.ready ? "10 хүн бүрдсэн, дараагийн шатанд бэлэн" : `${bucket.remainingCount} хүн дутуу байна`}
                           </div>
@@ -259,6 +263,15 @@ export default async function HomePage() {
                           <div className="text-xs text-white/46">сонирхож байна</div>
                         </div>
                       </div>
+                      <Link
+                        href={`/apply?size=${bucket.accountSize}`}
+                        className={cn(
+                          buttonVariants({ size: "sm" }),
+                          "mt-3 w-full justify-center rounded-[1rem] bg-[linear-gradient(135deg,#39d3b3_0%,#18c7a2_58%,#10927c_100%)] text-[#071210] shadow-[inset_0_1px_0_rgba(255,255,255,0.24),0_12px_28px_rgba(24,199,162,0.18)] hover:bg-[linear-gradient(135deg,#4fdbc0_0%,#20cfab_58%,#129b84_100%)]",
+                        )}
+                      >
+                        Бүртгүүлэх
+                      </Link>
                     </div>
                   ))}
                 </div>

@@ -30,7 +30,15 @@ type Viewer = {
   fullName: string;
 } | null;
 
-export function ApplyForm({ rooms, viewer }: { rooms: SignupRoomOption[]; viewer: Viewer }) {
+export function ApplyForm({
+  rooms,
+  viewer,
+  preferredRoomId,
+}: {
+  rooms: SignupRoomOption[];
+  viewer: Viewer;
+  preferredRoomId?: string;
+}) {
   const [state, action] = useActionState(submitApplicantAction, defaultActionState);
   const hasRooms = rooms.length > 0;
 
@@ -73,7 +81,7 @@ export function ApplyForm({ rooms, viewer }: { rooms: SignupRoomOption[]; viewer
             <select
               name="roomId"
               className="flex h-12 w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 text-white outline-none transition focus:border-[#3daafe] focus:ring-3 focus:ring-[#0781fe]/25"
-              defaultValue={hasRooms ? rooms[0].id : ""}
+              defaultValue={preferredRoomId ?? (hasRooms ? rooms[0].id : "")}
               disabled={!hasRooms}
             >
               {hasRooms ? (

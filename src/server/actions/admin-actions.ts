@@ -11,6 +11,7 @@ import {
   adminLoginSchema,
   applicantStatusSchema,
   roomFormSchema,
+  traderCompletionRecordSchema,
   settingsSchema,
   traderFormSchema,
   traderViolationSchema,
@@ -19,7 +20,7 @@ import type { ActionState } from "@/server/actions/action-state";
 import { updateApplicantStatus } from "@/server/services/applicant-service";
 import { deleteTrader, upsertRoom, upsertTrader } from "@/server/services/room-service";
 import { saveSettings } from "@/server/services/settings-service";
-import { refreshRoomStats, refreshTraderStats, setTraderViolation } from "@/server/services/trader-service";
+import { refreshRoomStats, refreshTraderStats, setTraderCompletionRecorded, setTraderViolation } from "@/server/services/trader-service";
 
 function toBoolean(value: FormDataEntryValue | null) {
   return value === "on" || value === "true";
@@ -174,6 +175,26 @@ export async function setTraderViolationAction(formData: FormData) {
   }
 
   redirectWithMessage(returnPath, "success", "Trader violation updated.");
+}
+
+export async function setTraderCompletionRecordedAction(formData: FormData) {
+  const roomId = String(formData.get("roomId"));
+  const returnPath = String(formData.get("returnPath") || `/admin/rooms/${roomId}`);
+
+  try {
+    const parsed = traderCompletionRecordSchema.parse({
+      traderId: formData.get("traderId"),
+      completionRecorded: toBoolean(formData.get("completionRecorded")),
+    });
+
+    await setTraderCompletionRecorded(parsed);
+
+    revalidatePaths([`/admin/rooms/${roomId}`, "/admin/traders"]);
+  } catch (error) {
+    redirectWithMessage(returnPath, "error", getUserFacingErrorMessage(error, "Failed to update completion record."));
+  }
+
+  redirectWithMessage(returnPath, "success", "Completion record updated.");
 }
 
 export async function refreshTraderAction(formData: FormData) {

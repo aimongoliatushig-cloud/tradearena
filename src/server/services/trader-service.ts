@@ -1,7 +1,8 @@
-import { FetchSource, JobStatus, JobType, RoomLifecycleStatus } from "@prisma/client";
+import { AccountSize, FetchSource, JobStatus, JobType, RoomLifecycleStatus } from "@prisma/client";
 
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
+import { FTMO_DAILY_LOSS_LIMIT_BY_ACCOUNT_SIZE, FTMO_MAX_LOSS_LIMIT_BY_ACCOUNT_SIZE } from "@/lib/ftmo-rules";
 import { recomputeRoomLeaderboard } from "@/server/services/leaderboard-service";
 import { closeFtmoBrowser, fetchFtmoMetrics } from "@/server/services/scrape-service";
 
@@ -36,6 +37,60 @@ function createTimeoutError(label: string, timeoutMs: number) {
   const error = new Error(`${label} timeout after ${timeoutMs}ms`);
   error.name = "TimeoutError";
   return error;
+}
+
+const AUTO_VIOLATION_REASON_PREFIX = "FTMO ";
+
+function formatUsd(value: number) {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value);
+}
+
+function isLimitBreached(value: number | null | undefined, limit: number) {
+  return value !== null && value !== undefined && value <= -limit;
+}
+
+function buildAutoViolationReason(label: "max daily loss" | "max loss", value: number, limit: number) {
+  return `${AUTO_VIOLATION_REASON_PREFIX}${label} breached (loss: ${formatUsd(value)}, limit: ${formatUsd(-limit)}).`;
+}
+
+function deriveViolationState(input: {
+  accountSize: AccountSize;
+  dailyLossValue: number | null | undefined;
+  maxLossValue: number | null | undefined;
+  existingViolationFlag: boolean;
+  existingViolationReason?: string | null;
+}) {
+  const dailyLossLimit = FTMO_DAILY_LOSS_LIMIT_BY_ACCOUNT_SIZE[input.accountSize];
+  const maxLossLimit = FTMO_MAX_LOSS_LIMIT_BY_ACCOUNT_SIZE[input.accountSize];
+
+  const autoReason =
+    isLimitBreached(input.dailyLossValue, dailyLossLimit)
+      ? buildAutoViolationReason("max daily loss", input.dailyLossValue!, dailyLossLimit)
+      : isLimitBreached(input.maxLossValue, maxLossLimit)
+        ? buildAutoViolationReason("max loss", input.maxLossValue!, maxLossLimit)
+        : null;
+
+  if (autoReason) {
+    const shouldKeepExistingReason =
+      input.existingViolationFlag &&
+      input.existingViolationReason &&
+      !input.existingViolationReason.startsWith(AUTO_VIOLATION_REASON_PREFIX);
+
+    return {
+      violationFlag: true,
+      violationReason: shouldKeepExistingReason ? input.existingViolationReason : autoReason,
+    };
+  }
+
+  return {
+    violationFlag: input.existingViolationFlag,
+    violationReason: input.existingViolationFlag ? input.existingViolationReason ?? null : null,
+  };
 }
 
 async function withTimeout<T>(input: {
@@ -97,6 +152,18 @@ export async function setTraderViolation(input: {
   return trader;
 }
 
+export async function setTraderCompletionRecorded(input: {
+  traderId: string;
+  completionRecorded: boolean;
+}) {
+  return db.trader.update({
+    where: { id: input.traderId },
+    data: {
+      completionRecorded: input.completionRecorded,
+    },
+  });
+}
+
 export async function refreshTraderStats(
   traderId: string,
   source: FetchSource = FetchSource.MANUAL,
@@ -155,6 +222,13 @@ export async function refreshTraderStats(
     });
 
     const finishedAt = new Date();
+    const nextViolationState = deriveViolationState({
+      accountSize: trader.room.accountSize,
+      dailyLossValue: snapshot.dailyLossValue,
+      maxLossValue: snapshot.maxLossValue,
+      existingViolationFlag: trader.violationFlag,
+      existingViolationReason: trader.violationReason,
+    });
 
     await db.trader.update({
       where: { id: trader.id },
@@ -165,6 +239,8 @@ export async function refreshTraderStats(
         currentMaxLossValue: snapshot.maxLossValue ?? null,
         currentBalance: snapshot.balance ?? null,
         currentEquity: snapshot.equity ?? null,
+        violationFlag: nextViolationState.violationFlag,
+        violationReason: nextViolationState.violationReason,
         latestSnapshotAt: finishedAt,
         snapshots: {
           create: {

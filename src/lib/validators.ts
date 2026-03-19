@@ -66,6 +66,11 @@ export const traderViolationSchema = z.object({
   violationReason: z.string().trim().max(300).optional(),
 });
 
+export const traderCompletionRecordSchema = z.object({
+  traderId: z.string().cuid(),
+  completionRecorded: z.boolean(),
+});
+
 export const applicantStatusSchema = z.object({
   applicantId: z.string().cuid(),
   status: z.nativeEnum(ApplicantStatus),

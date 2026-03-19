@@ -7,12 +7,15 @@ import { RoomForm } from "@/components/admin/room-form";
 import { TraderForm } from "@/components/admin/trader-form";
 import { FlashMessage } from "@/components/shared/flash-message";
 import { StatusBadge } from "@/components/shared/status-badge";
-import { formatDateTime, formatPercent } from "@/lib/format";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { formatCurrency, formatDateTime, formatPercent } from "@/lib/format";
+import { buildTraderCompletionStatus, getTotalRiskValue } from "@/lib/ftmo-rules";
 import { roomStatusLabels } from "@/lib/labels";
 import {
   deleteTraderFormAction,
   refreshRoomAction,
   refreshTraderAction,
+  setTraderCompletionRecordedAction,
   setTraderViolationAction,
 } from "@/server/actions/admin-actions";
 import { getAdminRoomDetail } from "@/server/services/room-service";
@@ -33,6 +36,22 @@ export default async function AdminRoomDetailPage({
   }
 
   const activeTraderCount = room.traders.filter((trader) => trader.active).length;
+  const reportRows = room.traders.map((trader) => {
+    const latestSnapshot = trader.snapshots[0] ?? null;
+    const completion = buildTraderCompletionStatus({
+      accountSize: room.accountSize,
+      currentProfitAbsolute: trader.currentProfitAbsolute,
+      currentProfitPercent: trader.currentProfitPercent,
+      violationFlag: trader.violationFlag,
+      rawPayload: latestSnapshot?.rawPayload,
+    });
+
+    return {
+      trader,
+      completion,
+      totalRisk: getTotalRiskValue(trader.currentDailyLossValue, trader.currentMaxLossValue),
+    };
+  });
 
   return (
     <section className="space-y-6">
@@ -138,6 +157,82 @@ export default async function AdminRoomDetailPage({
             </div>
           ))}
         </div>
+      </div>
+      <div className="glass-panel p-6">
+        <div className="mb-4 space-y-2">
+          <h2 className="text-xl font-semibold text-white">Reporting</h2>
+          <p className="text-sm text-white/60">Биелүүлсэн = 5% target хүрсэн, зөрчилгүй, мөн 2 өдөр 2.5%-иас дээш ашигтай.</p>
+        </div>
+        <Table>
+          <TableHeader>
+            <TableRow className="border-white/10 bg-white/[0.03] hover:bg-white/[0.03]">
+              <TableHead className="px-4 text-[11px] font-semibold uppercase tracking-[0.22em] text-white/48">Трейдер</TableHead>
+              <TableHead className="px-4 text-[11px] font-semibold uppercase tracking-[0.22em] text-white/48">Ашиг</TableHead>
+              <TableHead className="px-4 text-[11px] font-semibold uppercase tracking-[0.22em] text-white/48">2.5%+ өдөр</TableHead>
+              <TableHead className="px-4 text-[11px] font-semibold uppercase tracking-[0.22em] text-white/48">Max daily loss</TableHead>
+              <TableHead className="px-4 text-[11px] font-semibold uppercase tracking-[0.22em] text-white/48">Max loss</TableHead>
+              <TableHead className="px-4 text-[11px] font-semibold uppercase tracking-[0.22em] text-white/48">Total risk</TableHead>
+              <TableHead className="px-4 text-[11px] font-semibold uppercase tracking-[0.22em] text-white/48">Биелүүлсэн</TableHead>
+              <TableHead className="px-4 text-[11px] font-semibold uppercase tracking-[0.22em] text-white/48">OK recorded</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {reportRows.map(({ trader, completion, totalRisk }) => {
+              const canRecord = completion.completed || trader.completionRecorded;
+
+              return (
+                <TableRow key={`report-${trader.id}`} className="border-white/8 hover:bg-white/[0.025]">
+                  <TableCell className="px-4 py-4">
+                    <div className="space-y-1">
+                      <div className={`font-medium ${trader.violationFlag ? "text-rose-300" : "text-white"}`}>{trader.fullName}</div>
+                      <div className="text-xs text-white/45">{formatDateTime(trader.latestSnapshotAt)}</div>
+                    </div>
+                  </TableCell>
+                  <TableCell className={`px-4 py-4 ${trader.currentProfitPercent < 0 ? "text-red-300" : "text-[#83c5ff]"}`}>
+                    <div className="space-y-1">
+                      <div>{formatPercent(trader.currentProfitPercent)}</div>
+                      <div className="text-xs text-white/45">{formatCurrency(trader.currentProfitAbsolute)}</div>
+                    </div>
+                  </TableCell>
+                  <TableCell className="px-4 py-4 text-white/70">
+                    <div className="space-y-1">
+                      <div>
+                        {completion.qualifiedProfitDays}/{completion.requiredQualifyingDayCount} өдөр
+                      </div>
+                      <div className="text-xs text-white/45">{formatCurrency(completion.qualifyingDayProfitUsd)}+</div>
+                    </div>
+                  </TableCell>
+                  <TableCell className="px-4 py-4 text-red-200/85">{formatCurrency(trader.currentDailyLossValue)}</TableCell>
+                  <TableCell className="px-4 py-4 text-red-200/85">{formatCurrency(trader.currentMaxLossValue)}</TableCell>
+                  <TableCell className="px-4 py-4 text-white/78">{formatCurrency(totalRisk)}</TableCell>
+                  <TableCell className="px-4 py-4">
+                    {completion.completed ? (
+                      <StatusBadge label="Тийм" tone="success" />
+                    ) : trader.violationFlag ? (
+                      <StatusBadge label="Зөрчилтэй" tone="danger" />
+                    ) : (
+                      <StatusBadge label="Үгүй" tone="muted" />
+                    )}
+                  </TableCell>
+                  <TableCell className="px-4 py-4">
+                    <form action={setTraderCompletionRecordedAction} className="flex min-w-44 items-center gap-3">
+                      <input type="hidden" name="traderId" value={trader.id} />
+                      <input type="hidden" name="roomId" value={room.id} />
+                      <input type="hidden" name="returnPath" value={`/admin/rooms/${room.id}`} />
+                      <label className={`flex items-center gap-2 text-sm ${canRecord ? "text-white/72" : "text-white/35"}`}>
+                        <input type="checkbox" name="completionRecorded" defaultChecked={trader.completionRecorded} disabled={!canRecord} />
+                        OK
+                      </label>
+                      <SubmitButton size="sm" disabled={!canRecord}>
+                        Хадгалах
+                      </SubmitButton>
+                    </form>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
       </div>
     </section>
   );

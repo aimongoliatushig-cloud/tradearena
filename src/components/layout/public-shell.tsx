@@ -1,9 +1,10 @@
 import Image from "next/image";
 import Link from "next/link";
-import { BarChart3, History, LayoutGrid, Send } from "lucide-react";
+import { BarChart3, BookOpen, History, LayoutGrid, Send } from "lucide-react";
 
 const navItems = [
   { href: "/", label: "Нүүр", icon: LayoutGrid },
+  { href: "/program", label: "Хөтөлбөр", icon: BookOpen },
   { href: "/rooms", label: "Өрөөнүүд", icon: BarChart3 },
   { href: "/history", label: "Түүх", icon: History },
   { href: "/apply", label: "Бүртгүүлэх", icon: Send },

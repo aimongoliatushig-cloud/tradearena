@@ -150,6 +150,7 @@ model Trader {
   currentEquity         Float?
   violationFlag         Boolean         @default(false)
   violationReason       String?
+  completionRecorded    Boolean         @default(false)
   rank                  Int?
   latestSnapshotAt      DateTime?
   createdAt             DateTime        @default(now())

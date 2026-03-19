@@ -11,13 +11,20 @@ import { formatUsd } from "@/lib/pricing";
 import { getPaymentDetailsConfig } from "@/server/services/settings-service";
 import { listSignupRooms } from "@/server/services/room-service";
 
-export default async function ApplyPage() {
+export default async function ApplyPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const params = await searchParams;
   const { userId } = await auth();
   const [signupRooms, paymentDetails, user] = await Promise.all([
     listSignupRooms(),
     getPaymentDetailsConfig(),
     userId ? currentUser() : Promise.resolve(null),
   ]);
+  const preferredSize = typeof params.size === "string" ? params.size : null;
+  const preferredRoomId = signupRooms.find((room) => room.accountSize === preferredSize)?.id ?? signupRooms[0]?.id ?? "";
 
   const viewer = user
     ? {
@@ -88,7 +95,7 @@ export default async function ApplyPage() {
           </div>
         </div>
 
-        <ApplyForm rooms={signupRooms} viewer={viewer} />
+        <ApplyForm rooms={signupRooms} viewer={viewer} preferredRoomId={preferredRoomId} />
       </section>
     </PublicShell>
   );
