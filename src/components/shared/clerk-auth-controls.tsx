@@ -1,9 +1,13 @@
-"use client";
-
 import Link from "next/link";
 
 import { buttonVariants } from "@/lib/button-variants";
 import { cn } from "@/lib/utils";
+
+type HeaderViewer = {
+  email?: string | null;
+  imageUrl?: string | null;
+  name?: string | null;
+};
 
 function buildAuthHref(path: string, returnBackUrl?: string) {
   if (!returnBackUrl) {
@@ -14,21 +18,67 @@ function buildAuthHref(path: string, returnBackUrl?: string) {
   return `${path}?${params.toString()}`;
 }
 
+function getInitials(name?: string | null, email?: string | null) {
+  const source = name?.trim() || email?.trim() || "Хэрэглэгч";
+  const parts = source
+    .split(/\s+/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  if (parts.length === 1) {
+    return parts[0].slice(0, 2).toUpperCase();
+  }
+
+  return `${parts[0]?.[0] ?? ""}${parts[1]?.[0] ?? ""}`.toUpperCase();
+}
+
 export function ClerkHeaderActions({
   dashboardHref = "/dashboard",
-  isSignedIn,
+  viewer,
 }: {
   dashboardHref?: string;
-  isSignedIn: boolean;
+  viewer?: HeaderViewer | null;
 }) {
-  if (isSignedIn) {
+  if (viewer) {
     return (
-      <Link
-        href={dashboardHref}
-        className="inline-flex h-10 items-center justify-center rounded-xl border border-[#2dd0b1]/35 bg-[linear-gradient(135deg,#1cc6a4_0%,#149f88_100%)] px-4 text-sm font-semibold text-[#071210] transition hover:border-[#5ce0c6]/55"
-      >
-        Хяналтын самбар
-      </Link>
+      <div className="flex items-center gap-3">
+        <Link
+          href={dashboardHref}
+          className="inline-flex h-10 items-center justify-center rounded-xl border border-[#2dd0b1]/35 bg-[linear-gradient(135deg,#1cc6a4_0%,#149f88_100%)] px-4 text-sm font-semibold text-[#071210] transition hover:border-[#5ce0c6]/55"
+        >
+          Хяналтын самбар
+        </Link>
+
+        <Link
+          href={dashboardHref}
+          className="inline-flex items-center gap-3 rounded-xl border border-white/12 bg-white/[0.04] px-3 py-2 text-left text-white/85 transition hover:bg-white/[0.07]"
+        >
+          {viewer.imageUrl ? (
+            <div
+              aria-label={viewer.name ?? viewer.email ?? "Хэрэглэгч"}
+              className="size-9 rounded-full bg-cover bg-center"
+              style={{ backgroundImage: `url("${viewer.imageUrl}")` }}
+            />
+          ) : (
+            <div className="flex size-9 items-center justify-center rounded-full bg-[#18c7a2]/18 text-xs font-semibold text-[#bff7ea]">
+              {getInitials(viewer.name, viewer.email)}
+            </div>
+          )}
+          <div className="hidden min-w-0 sm:block">
+            <div className="truncate text-sm font-semibold text-white">{viewer.name ?? "Хэрэглэгч"}</div>
+            <div className="truncate text-xs text-white/45">{viewer.email ?? "Бүртгэлтэй хэрэглэгч"}</div>
+          </div>
+        </Link>
+
+        <form action="/sign-out" method="post">
+          <button
+            type="submit"
+            className="inline-flex h-10 items-center justify-center rounded-xl border border-white/12 px-4 text-sm text-white/70 transition hover:bg-white/[0.05] hover:text-white"
+          >
+            Гарах
+          </button>
+        </form>
+      </div>
     );
   }
 

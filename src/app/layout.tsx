@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { auth } from "@clerk/nextjs/server";
+import { auth, currentUser } from "@clerk/nextjs/server";
 import { Manrope } from "next/font/google";
 import { Toaster } from "sonner";
 
@@ -25,6 +25,7 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const { userId } = await auth();
+  const viewer = userId ? await currentUser() : null;
   bootScheduler();
 
   return (
@@ -36,7 +37,17 @@ export default async function RootLayout({
               <div className="text-xs uppercase tracking-[0.24em] text-white/40">
                 {userId ? "Гишүүн нэвтэрсэн" : "Нэвтрэх боломжтой"}
               </div>
-              <ClerkHeaderActions isSignedIn={Boolean(userId)} />
+              <ClerkHeaderActions
+                viewer={
+                  viewer
+                    ? {
+                        name: [viewer.firstName, viewer.lastName].filter(Boolean).join(" ") || viewer.username,
+                        email: viewer.primaryEmailAddress?.emailAddress,
+                        imageUrl: viewer.imageUrl,
+                      }
+                    : null
+                }
+              />
             </div>
           </header>
           {children}
