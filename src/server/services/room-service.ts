@@ -63,6 +63,7 @@ export async function upsertRoom(input: {
 export async function listPublicRooms() {
   const rooms = await db.challengeRoom.findMany({
     where: {
+      isPackageRoom: false,
       publicStatus: RoomPublicStatus.PUBLIC,
       lifecycleStatus: {
         in: [
@@ -89,6 +90,7 @@ export async function listSignupRooms() {
 
   const rooms = await db.challengeRoom.findMany({
     where: {
+      isPackageRoom: false,
       publicStatus: RoomPublicStatus.PUBLIC,
       lifecycleStatus: ROOM_LIFECYCLE_STATUS.SIGNUP_OPEN,
     },
@@ -136,6 +138,7 @@ export async function getPublicHomepageData() {
 export async function listHistoricalRooms() {
   return db.challengeRoom.findMany({
     where: {
+      isPackageRoom: false,
       publicStatus: RoomPublicStatus.PUBLIC,
       lifecycleStatus: {
         in: [ROOM_LIFECYCLE_STATUS.EXPIRED, ROOM_LIFECYCLE_STATUS.COMPLETED, ROOM_LIFECYCLE_STATUS.ARCHIVED],
@@ -154,6 +157,7 @@ export async function listHistoricalRooms() {
 export async function getPublicRoomDetail(roomIdOrSlug: string) {
   return db.challengeRoom.findFirst({
     where: {
+      isPackageRoom: false,
       publicStatus: RoomPublicStatus.PUBLIC,
       lifecycleStatus: {
         in: [
@@ -184,6 +188,13 @@ export async function getPublicRoomDetail(roomIdOrSlug: string) {
 export async function listAdminRooms() {
   return db.challengeRoom.findMany({
     include: {
+      packageTier: true,
+      packageEnrollments: {
+        include: {
+          payment: true,
+          packageTier: true,
+        },
+      },
       traders: {
         orderBy: leaderboardTraderOrderBy,
       },
@@ -196,6 +207,18 @@ export async function getAdminRoomDetail(roomId: string) {
   return db.challengeRoom.findUnique({
     where: { id: roomId },
     include: {
+      packageTier: true,
+      packageEnrollments: {
+        orderBy: { createdAt: "asc" },
+        include: {
+          payment: true,
+          packageTier: true,
+          auditLogs: {
+            orderBy: { createdAt: "desc" },
+            take: 10,
+          },
+        },
+      },
       traders: {
         orderBy: leaderboardTraderOrderBy,
         include: {
@@ -330,6 +353,7 @@ export async function ensureOpenSignupRoom(
 ) {
   const existingRoom = await db.challengeRoom.findFirst({
     where: {
+      isPackageRoom: false,
       accountSize,
       publicStatus: RoomPublicStatus.PUBLIC,
       lifecycleStatus: ROOM_LIFECYCLE_STATUS.SIGNUP_OPEN,
@@ -346,6 +370,7 @@ export async function ensureOpenSignupRoom(
   const endDate = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
   const roomCount = await db.challengeRoom.count({
     where: {
+      isPackageRoom: false,
       accountSize,
       lifecycleStatus: {
         in: [...SIGNUP_ROOM_STATUS_OPTIONS],
@@ -370,6 +395,7 @@ export async function ensureOpenSignupRoom(
       updateTimes: template?.updateTimes?.length ? template.updateTimes : defaultSchedule.updateTimes,
       updateTimezone: template?.updateTimezone ?? defaultSchedule.timezone,
       allowExpiredUpdates: template?.allowExpiredUpdates ?? false,
+      isPackageRoom: false,
     },
   });
 }

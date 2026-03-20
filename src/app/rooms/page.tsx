@@ -16,19 +16,20 @@ export default async function RoomsPage() {
           <div className="pointer-events-none absolute -right-16 top-0 h-44 w-44 rounded-full bg-[#0781fe]/18 blur-3xl" />
           <div className="relative flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             <div className="max-w-2xl">
-              <div className="ftmo-kicker">Challenge Rooms</div>
-              <h1 className="mt-4 text-4xl font-semibold tracking-[-0.04em] text-white">Challenge өрөөнүүд</h1>
+              <div className="ftmo-kicker">FTMO өрөөнүүд</div>
+              <h1 className="mt-4 text-4xl font-semibold tracking-[-0.04em] text-white">Нээлттэй болон архивын өрөөнүүд</h1>
               <p className="mt-3 max-w-2xl text-sm leading-7 text-white/58">
-                Sort дараалал: эхлээд хамгийн сүүлийн идэвхтэй room, дараа нь бусад active room, төгсгөлд history.
+                Энд зөвхөн FTMO лидер самбартай өрөөнүүд харагдана. Багцын гишүүдийн өрөөнүүд нь дотоод хяналтын урсгалд
+                тусдаа удирдагдана.
               </p>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="ftmo-panel-soft px-4 py-4">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/48">Active</div>
+                <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/48">Идэвхтэй</div>
                 <div className="mt-2 text-3xl font-semibold tracking-[-0.03em] text-white">{activeRooms.length}</div>
               </div>
               <div className="ftmo-panel-soft px-4 py-4">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/48">History</div>
+                <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/48">Түүх</div>
                 <div className="mt-2 text-3xl font-semibold tracking-[-0.03em] text-white">{archivedRooms.length}</div>
               </div>
             </div>
@@ -37,7 +38,7 @@ export default async function RoomsPage() {
 
         <div className="space-y-5">
           <div className="flex items-center justify-between gap-4">
-            <h2 className="text-xl font-semibold tracking-[-0.03em] text-white">Идэвхтэй өрөө</h2>
+            <h2 className="text-xl font-semibold tracking-[-0.03em] text-white">Идэвхтэй өрөөнүүд</h2>
             <span className="rounded-full border border-white/10 bg-white/[0.03] px-4 py-2 text-sm text-white/55">{activeRooms.length} өрөө</span>
           </div>
           <div className="section-grid">
@@ -49,7 +50,7 @@ export default async function RoomsPage() {
 
         <div className="space-y-5">
           <div className="flex items-center justify-between gap-4">
-            <h2 className="text-xl font-semibold tracking-[-0.03em] text-white">Түүх</h2>
+            <h2 className="text-xl font-semibold tracking-[-0.03em] text-white">Архив ба түүх</h2>
             <span className="rounded-full border border-white/10 bg-white/[0.03] px-4 py-2 text-sm text-white/55">{archivedRooms.length} өрөө</span>
           </div>
           <div className="section-grid">

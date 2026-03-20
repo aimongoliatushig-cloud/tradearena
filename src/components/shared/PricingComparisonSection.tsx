@@ -142,7 +142,7 @@ export function PricingComparisonSection() {
             TradeArena нь зөвхөн үнийн давуу тал биш. Дүрэм барих, сэтгэлзүйгээ шалгах, хяналттай орчинд бэлтгэх систем юм.
           </p>
         </div>
-        <Link href="/apply" className={buttonVariants({ size: "lg" })}>
+        <Link href="/packages" className={buttonVariants({ size: "lg" })}>
           Оролцох хүсэлт илгээх
           <ArrowRight className="size-4" />
         </Link>

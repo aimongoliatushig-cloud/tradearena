@@ -3,10 +3,18 @@
 import { FetchSource } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { z } from "zod";
 
 import { createAdminSession, destroyAdminSession, verifyPassword } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { getUserFacingErrorMessage } from "@/lib/error-utils";
+import {
+  courseFormSchema,
+  enrollmentMoveSchema,
+  packageTierFormSchema,
+  paymentConfirmationSchema,
+  resourceFormSchema,
+} from "@/lib/package-validators";
 import {
   adminLoginSchema,
   applicantStatusSchema,
@@ -18,6 +26,10 @@ import {
 } from "@/lib/validators";
 import type { ActionState } from "@/server/actions/action-state";
 import { updateApplicantStatus } from "@/server/services/applicant-service";
+import { upsertCourse } from "@/server/services/course-service";
+import { confirmPaymentAndEnroll, mergePackageRooms, moveEnrollmentToRoom } from "@/server/services/enrollment-service";
+import { upsertPackageTier } from "@/server/services/package-service";
+import { upsertResource } from "@/server/services/resource-service";
 import { deleteTrader, upsertRoom, upsertTrader } from "@/server/services/room-service";
 import { saveSettings } from "@/server/services/settings-service";
 import { refreshRoomStats, refreshTraderStats, setTraderCompletionRecorded, setTraderViolation } from "@/server/services/trader-service";
@@ -114,7 +126,7 @@ export async function saveRoomFormAction(formData: FormData) {
     const room = await upsertRoom(parsed);
     successPath = parsed.id ? returnPath : `/admin/rooms/${room.id}`;
 
-    revalidatePaths(["/admin", "/admin/rooms", `/admin/rooms/${room.id}`, ...(await getPublicRoomPaths(room.id)), "/", "/rooms", "/history", "/apply"]);
+    revalidatePaths(["/admin", "/admin/rooms", `/admin/rooms/${room.id}`, ...(await getPublicRoomPaths(room.id)), "/", "/rooms", "/history", "/packages"]);
   } catch (error) {
     redirectWithMessage(returnPath, "error", getUserFacingErrorMessage(error, "Failed to save room."));
   }
@@ -239,7 +251,7 @@ export async function updateApplicantStatusAction(formData: FormData) {
     });
 
     await updateApplicantStatus(parsed);
-    revalidatePaths(["/admin/applicants", "/apply"]);
+    revalidatePaths(["/admin/applicants", "/packages"]);
   } catch (error) {
     redirectWithMessage(returnPath, "error", getUserFacingErrorMessage(error, "Failed to update applicant status."));
   }
@@ -260,13 +272,165 @@ export async function saveSettingsAction(formData: FormData) {
       accountHolder: formData.get("accountHolder"),
       accountNumber: formData.get("accountNumber"),
       transactionValueHint: formData.get("transactionValueHint"),
+      coachingCtaLabel: formData.get("coachingCtaLabel"),
+      coachingCtaUrl: formData.get("coachingCtaUrl"),
+      supportCtaLabel: formData.get("supportCtaLabel"),
+      supportCtaUrl: formData.get("supportCtaUrl"),
     });
 
     await saveSettings(parsed);
-    revalidatePaths(["/admin/settings", "/apply"]);
+    revalidatePaths(["/admin/settings", "/dashboard", "/checkout"]);
   } catch (error) {
     redirectWithMessage(returnPath, "error", getUserFacingErrorMessage(error, "Failed to save settings."));
   }
 
   redirectWithMessage(returnPath, "success", "Settings saved.");
+}
+
+export async function savePackageTierAction(formData: FormData) {
+  const returnPath = String(formData.get("returnPath") || "/admin/packages");
+
+  try {
+    const parsed = packageTierFormSchema.parse({
+      id: formData.get("id") || undefined,
+      nameMn: formData.get("nameMn"),
+      accountSize: formData.get("accountSize"),
+      priceUsd: formData.get("priceUsd"),
+      maxUsers: formData.get("maxUsers"),
+      featuresInput: formData.get("featuresInput"),
+      strategyCount: formData.get("strategyCount"),
+      includesCoaching: toBoolean(formData.get("includesCoaching")),
+      coachingHours: formData.get("coachingHours"),
+      includesIndicators: toBoolean(formData.get("includesIndicators")),
+      courseAccessLevel: formData.get("courseAccessLevel"),
+      prioritySupport: toBoolean(formData.get("prioritySupport")),
+      sortOrder: formData.get("sortOrder"),
+      isActive: toBoolean(formData.get("isActive")),
+    });
+
+    await upsertPackageTier(parsed);
+    revalidatePaths(["/admin/packages", "/packages", "/", "/checkout"]);
+  } catch (error) {
+    redirectWithMessage(returnPath, "error", getUserFacingErrorMessage(error, "Багц хадгалах үед алдаа гарлаа."));
+  }
+
+  redirectWithMessage(returnPath, "success", "Багц хадгалагдлаа.");
+}
+
+export async function saveCourseAction(formData: FormData) {
+  const returnPath = String(formData.get("returnPath") || "/admin/courses");
+
+  try {
+    const parsed = courseFormSchema.parse({
+      id: formData.get("id") || undefined,
+      titleMn: formData.get("titleMn"),
+      descriptionMn: formData.get("descriptionMn") || undefined,
+      videoUrl: formData.get("videoUrl") || undefined,
+      textContent: formData.get("textContent") || undefined,
+      pdfUrlsInput: formData.get("pdfUrlsInput") || undefined,
+      packageTierIds: formData.getAll("packageTierIds").map(String),
+      sortOrder: formData.get("sortOrder"),
+      isPublished: toBoolean(formData.get("isPublished")),
+    });
+
+    await upsertCourse(parsed);
+    revalidatePaths(["/admin/courses", "/dashboard"]);
+  } catch (error) {
+    redirectWithMessage(returnPath, "error", getUserFacingErrorMessage(error, "Сургалт хадгалах үед алдаа гарлаа."));
+  }
+
+  redirectWithMessage(returnPath, "success", "Сургалт хадгалагдлаа.");
+}
+
+export async function saveResourceAction(formData: FormData) {
+  const returnPath = String(formData.get("returnPath") || "/admin/resources");
+
+  try {
+    const parsed = resourceFormSchema.parse({
+      id: formData.get("id") || undefined,
+      titleMn: formData.get("titleMn"),
+      descriptionMn: formData.get("descriptionMn") || undefined,
+      type: formData.get("type"),
+      linkUrl: formData.get("linkUrl"),
+      packageTierIds: formData.getAll("packageTierIds").map(String),
+      sortOrder: formData.get("sortOrder"),
+      isPublished: toBoolean(formData.get("isPublished")),
+    });
+
+    await upsertResource(parsed);
+    revalidatePaths(["/admin/resources", "/dashboard"]);
+  } catch (error) {
+    redirectWithMessage(returnPath, "error", getUserFacingErrorMessage(error, "Нөөц хадгалах үед алдаа гарлаа."));
+  }
+
+  redirectWithMessage(returnPath, "success", "Нөөц хадгалагдлаа.");
+}
+
+export async function confirmManualPaymentAction(formData: FormData) {
+  const returnPath = String(formData.get("returnPath") || "/admin/enrollments");
+
+  try {
+    const parsed = paymentConfirmationSchema.parse({
+      paymentId: formData.get("paymentId"),
+    });
+
+    await confirmPaymentAndEnroll({
+      paymentId: parsed.paymentId,
+      actorId: "admin",
+    });
+    revalidatePaths(["/admin/enrollments", "/admin/rooms", "/dashboard", "/packages"]);
+  } catch (error) {
+    redirectWithMessage(returnPath, "error", getUserFacingErrorMessage(error, "Төлбөр баталгаажуулах үед алдаа гарлаа."));
+  }
+
+  redirectWithMessage(returnPath, "success", "Төлбөр баталгаажлаа.");
+}
+
+export async function moveEnrollmentAction(formData: FormData) {
+  const returnPath = String(formData.get("returnPath") || "/admin/rooms");
+
+  try {
+    const parsed = enrollmentMoveSchema.parse({
+      enrollmentId: formData.get("enrollmentId"),
+      roomId: formData.get("roomId"),
+    });
+
+    await moveEnrollmentToRoom({
+      enrollmentId: parsed.enrollmentId,
+      roomId: parsed.roomId,
+      actorId: "admin",
+    });
+    revalidatePaths(["/admin/enrollments", "/admin/rooms", "/dashboard"]);
+  } catch (error) {
+    redirectWithMessage(returnPath, "error", getUserFacingErrorMessage(error, "Элсэлтийг шилжүүлэх үед алдаа гарлаа."));
+  }
+
+  redirectWithMessage(returnPath, "success", "Элсэлтийг амжилттай шилжүүллээ.");
+}
+
+const roomMergeSchema = z.object({
+  sourceRoomId: z.string().cuid(),
+  targetRoomId: z.string().cuid(),
+});
+
+export async function mergePackageRoomsAction(formData: FormData) {
+  const returnPath = String(formData.get("returnPath") || "/admin/rooms");
+
+  try {
+    const parsed = roomMergeSchema.parse({
+      sourceRoomId: formData.get("sourceRoomId"),
+      targetRoomId: formData.get("targetRoomId"),
+    });
+
+    await mergePackageRooms({
+      sourceRoomId: parsed.sourceRoomId,
+      targetRoomId: parsed.targetRoomId,
+      actorId: "admin",
+    });
+    revalidatePaths(["/admin/rooms", "/admin/enrollments", "/dashboard"]);
+  } catch (error) {
+    redirectWithMessage(returnPath, "error", getUserFacingErrorMessage(error, "Өрөөнүүдийг нэгтгэх үед алдаа гарлаа."));
+  }
+
+  redirectWithMessage(returnPath, "success", "Өрөөнүүдийг нэгтгэлээ.");
 }

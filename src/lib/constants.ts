@@ -17,3 +17,4 @@ export const APPLICANT_STATUS_OPTIONS = [
 export const DEFAULT_TARGET_PERCENT = 5;
 export const APPLY_RATE_LIMIT_PER_HOUR = 5;
 export const DEFAULT_UPDATE_TIMES = ["09:00", "21:00"];
+export const PACKAGE_ROOM_DECISION_WINDOW_HOURS = 48;

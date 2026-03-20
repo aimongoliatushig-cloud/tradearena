@@ -1,14 +1,15 @@
 import Image from "next/image";
 import Link from "next/link";
-import { BarChart3, BookOpen, History, LayoutGrid, Newspaper, Send } from "lucide-react";
+import { BarChart3, BookOpen, History, LayoutGrid, Newspaper, Package, UserRound } from "lucide-react";
 
 const navItems = [
   { href: "/", label: "Нүүр", icon: LayoutGrid },
+  { href: "/packages", label: "Багцууд", icon: Package },
+  { href: "/dashboard", label: "Самбар", icon: UserRound },
   { href: "/program", label: "Хөтөлбөр", icon: BookOpen },
   { href: "/blog", label: "Блог", icon: Newspaper },
   { href: "/rooms", label: "Өрөөнүүд", icon: BarChart3 },
   { href: "/history", label: "Түүх", icon: History },
-  { href: "/apply", label: "Бүртгүүлэх", icon: Send },
 ];
 
 export function PublicShell({ children }: { children: React.ReactNode }) {
@@ -58,11 +59,9 @@ export function PublicShell({ children }: { children: React.ReactNode }) {
         <div className="mx-auto flex max-w-7xl flex-col gap-6 rounded-[2rem] border border-white/8 bg-[linear-gradient(180deg,rgba(18,24,32,0.94),rgba(12,16,22,0.9))] px-6 py-6 backdrop-blur-xl md:flex-row md:items-center md:justify-between">
           <div className="space-y-2">
             <div className="text-sm font-semibold text-white">tradearena.pro</div>
-            <div className="max-w-2xl text-sm text-white/50">
-              FTMO public MetriX snapshot-уудыг хадгалж, challenge өрөөнүүдийн түүхийг нээлттэй үзүүлнэ.
-            </div>
+            <div className="max-w-2xl text-sm text-white/50">FTMO room tracking, багцын эрх, сургалт, стратеги, хэрэгслийг нэг платформд нэгтгэнэ.</div>
           </div>
-          <div className="text-xs uppercase tracking-[0.28em] text-white/32">Live rankings. Historical results.</div>
+          <div className="text-xs uppercase tracking-[0.28em] text-white/32">Packages. Rooms. Progress.</div>
         </div>
       </footer>
     </div>

@@ -1,4 +1,4 @@
-import { ApplicantStatus, JobStatus } from "@prisma/client";
+import { ApplicantStatus, JobStatus, PackageEnrollmentStatus } from "@prisma/client";
 
 import { db } from "@/lib/db";
 import { ROOM_LIFECYCLE_STATUS } from "@/lib/prisma-enums";
@@ -20,7 +20,7 @@ function buildAlertScopeKey(log: {
 }
 
 export async function getDashboardSummary() {
-  const [rooms, traderCount, applicantGroups, recentLogs] = await Promise.all([
+  const [rooms, traderCount, applicantGroups, recentLogs, packageCount, courseCount, resourceCount, enrollmentCount, packageRoomCount] = await Promise.all([
     db.challengeRoom.findMany({
       include: {
         traders: true,
@@ -39,6 +39,21 @@ export async function getDashboardSummary() {
       orderBy: { startedAt: "desc" },
       take: 100,
       include: { room: true, trader: true },
+    }),
+    db.packageTier.count(),
+    db.course.count(),
+    db.resource.count(),
+    db.packageEnrollment.count({
+      where: {
+        status: {
+          in: [PackageEnrollmentStatus.PENDING_PAYMENT, PackageEnrollmentStatus.PENDING_CONFIRMATION, PackageEnrollmentStatus.ENROLLED, PackageEnrollmentStatus.AWAITING_DECISION],
+        },
+      },
+    }),
+    db.challengeRoom.count({
+      where: {
+        isPackageRoom: true,
+      },
     }),
   ]);
 
@@ -66,9 +81,14 @@ export async function getDashboardSummary() {
       running: rooms.filter((room) => room.lifecycleStatus === ROOM_LIFECYCLE_STATUS.ACTIVE).length,
       signupOpen: rooms.filter((room) => room.lifecycleStatus === ROOM_LIFECYCLE_STATUS.SIGNUP_OPEN).length,
       readyToStart: rooms.filter((room) => room.lifecycleStatus === ROOM_LIFECYCLE_STATUS.READY_TO_START).length,
+      packageRooms: packageRoomCount,
       traders: traderCount,
       pendingApplicants: applicantCounts[ApplicantStatus.PENDING] ?? 0,
       contactedApplicants: applicantCounts[ApplicantStatus.INVITATION_SENT] ?? 0,
+      packages: packageCount,
+      courses: courseCount,
+      resources: resourceCount,
+      enrollments: enrollmentCount,
     },
     alertLogs,
     latestLogs: recentLogs.slice(0, 10),

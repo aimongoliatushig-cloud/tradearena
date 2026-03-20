@@ -77,7 +77,7 @@ export default async function RoomDetailsPage({
 
         <div className="space-y-4">
           <div>
-            <div className="ftmo-kicker">Leaderboard</div>
+            <div className="ftmo-kicker">Лидер самбар</div>
             <h2 className="mt-4 text-2xl font-semibold tracking-[-0.03em] text-white">Эрэмбэ</h2>
             <p className="mt-2 text-sm text-white/52">Ашгийн хувь өндөр трейдер эхэндээ эрэмбэлэгдэнэ.</p>
           </div>

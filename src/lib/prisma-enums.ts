@@ -1,4 +1,14 @@
-import type { AccountSize, BlogPostStatus, NotificationKind, RoomLifecycleStatus } from "@prisma/client";
+import type {
+  AccountSize,
+  BlogPostStatus,
+  CourseAccessLevel,
+  EnrollmentDecisionChoice,
+  NotificationKind,
+  PackageEnrollmentStatus,
+  PaymentStatus,
+  ResourceType,
+  RoomLifecycleStatus,
+} from "@prisma/client";
 
 export const ACCOUNT_SIZE = {
   SIZE_10K: "SIZE_10K",
@@ -19,6 +29,7 @@ export const ACCOUNT_SIZE_OPTIONS = [
 export const ROOM_LIFECYCLE_STATUS = {
   SIGNUP_OPEN: "SIGNUP_OPEN",
   READY_TO_START: "READY_TO_START",
+  AWAITING_DECISION: "AWAITING_DECISION",
   ACTIVE: "ACTIVE",
   EXPIRED: "EXPIRED",
   COMPLETED: "COMPLETED",
@@ -38,6 +49,67 @@ export const SIGNUP_ROOM_STATUS_OPTIONS = [
   ROOM_LIFECYCLE_STATUS.SIGNUP_OPEN,
   ROOM_LIFECYCLE_STATUS.READY_TO_START,
 ] as const satisfies readonly RoomLifecycleStatus[];
+
+export const PACKAGE_ENROLLMENT_STATUS = {
+  PENDING_PAYMENT: "PENDING_PAYMENT",
+  PENDING_CONFIRMATION: "PENDING_CONFIRMATION",
+  ENROLLED: "ENROLLED",
+  AWAITING_DECISION: "AWAITING_DECISION",
+  MERGED: "MERGED",
+  CANCELLED: "CANCELLED",
+} as const satisfies Record<string, PackageEnrollmentStatus>;
+
+export const PACKAGE_ENROLLMENT_STATUS_OPTIONS = [
+  PACKAGE_ENROLLMENT_STATUS.PENDING_PAYMENT,
+  PACKAGE_ENROLLMENT_STATUS.PENDING_CONFIRMATION,
+  PACKAGE_ENROLLMENT_STATUS.ENROLLED,
+  PACKAGE_ENROLLMENT_STATUS.AWAITING_DECISION,
+  PACKAGE_ENROLLMENT_STATUS.MERGED,
+  PACKAGE_ENROLLMENT_STATUS.CANCELLED,
+] as const satisfies readonly PackageEnrollmentStatus[];
+
+export const PAYMENT_STATUS = {
+  PENDING_SUBMISSION: "PENDING_SUBMISSION",
+  PENDING_CONFIRMATION: "PENDING_CONFIRMATION",
+  CONFIRMED: "CONFIRMED",
+  CANCELLED: "CANCELLED",
+} as const satisfies Record<string, PaymentStatus>;
+
+export const PAYMENT_STATUS_OPTIONS = [
+  PAYMENT_STATUS.PENDING_SUBMISSION,
+  PAYMENT_STATUS.PENDING_CONFIRMATION,
+  PAYMENT_STATUS.CONFIRMED,
+  PAYMENT_STATUS.CANCELLED,
+] as const satisfies readonly PaymentStatus[];
+
+export const RESOURCE_TYPE = {
+  STRATEGY: "STRATEGY",
+  INDICATOR: "INDICATOR",
+  TOOL: "TOOL",
+} as const satisfies Record<string, ResourceType>;
+
+export const RESOURCE_TYPE_OPTIONS = [RESOURCE_TYPE.STRATEGY, RESOURCE_TYPE.INDICATOR, RESOURCE_TYPE.TOOL] as const satisfies readonly ResourceType[];
+
+export const COURSE_ACCESS_LEVEL = {
+  BASIC: "BASIC",
+  TRADING_PLAN: "TRADING_PLAN",
+  INTERMEDIATE: "INTERMEDIATE",
+  ADVANCED: "ADVANCED",
+  FULL_ADVANCED: "FULL_ADVANCED",
+} as const satisfies Record<string, CourseAccessLevel>;
+
+export const COURSE_ACCESS_LEVEL_OPTIONS = [
+  COURSE_ACCESS_LEVEL.BASIC,
+  COURSE_ACCESS_LEVEL.TRADING_PLAN,
+  COURSE_ACCESS_LEVEL.INTERMEDIATE,
+  COURSE_ACCESS_LEVEL.ADVANCED,
+  COURSE_ACCESS_LEVEL.FULL_ADVANCED,
+] as const satisfies readonly CourseAccessLevel[];
+
+export const ENROLLMENT_DECISION = {
+  MERGE: "MERGE",
+  WAIT: "WAIT",
+} as const satisfies Record<string, EnrollmentDecisionChoice>;
 
 export const NOTIFICATION_KIND = {
   ROOM_INVITATION: "ROOM_INVITATION",

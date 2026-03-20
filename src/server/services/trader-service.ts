@@ -319,6 +319,10 @@ export async function refreshRoomStats(roomId: string, source: FetchSource = Fet
     throw new Error("Өрөө олдсонгүй.");
   }
 
+  if (room.isPackageRoom) {
+    throw new Error("Багцын өрөөн дээр FTMO шинэчлэлт ажиллахгүй.");
+  }
+
   logRefresh("before-room-refresh", {
     roomId,
     roomTitle: room.title,
@@ -432,6 +436,7 @@ export async function syncRoomLifecycleStatus() {
 
   const rooms = await db.challengeRoom.findMany({
     where: {
+      isPackageRoom: false,
       lifecycleStatus: RoomLifecycleStatus.ACTIVE,
       endDate: {
         lt: now,

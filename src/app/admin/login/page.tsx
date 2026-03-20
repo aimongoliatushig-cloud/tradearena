@@ -18,7 +18,7 @@ export default async function AdminLoginPage() {
       <div className="relative z-10 w-full max-w-md">
         <div className="mb-6 text-center">
           <div className="text-xs uppercase tracking-[0.35em] text-sky-100/55">FTMO админ</div>
-          <h1 className="mt-3 text-3xl font-semibold text-white">Challenge Rooms удирдлага</h1>
+          <h1 className="mt-3 text-3xl font-semibold text-white">TradeArena удирдлага</h1>
         </div>
         <AdminLoginForm />
       </div>

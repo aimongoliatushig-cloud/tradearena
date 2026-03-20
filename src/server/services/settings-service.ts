@@ -24,22 +24,22 @@ export async function getRoomReadyEmailConfig() {
   const value = setting?.value as { subject?: string; message?: string } | null;
 
   return {
-    subject: value?.subject ?? "Your TradeArena room is ready to start",
+    subject: value?.subject ?? "Таны TradeArena өрөө бэлэн боллоо",
     message:
       value?.message ??
       [
-        "Hello {fullName},",
+        "Сайн байна уу, {fullName}",
         "",
-        "Your {roomTitle} is now full and ready to start.",
-        "Entry fee: {entryFee}",
+        "{roomTitle} дүүрч, эхлэхэд бэлэн боллоо.",
+        "Багцын үнэ: {entryFee}",
         "",
-        "Please send the entry payment using the details below:",
-        "Bank: {bankName}",
-        "Account holder: {accountHolder}",
-        "Account number: {accountNumber}",
-        "Reference: {transactionValueHint}",
+        "Доорх мэдээллээр төлбөрөө илгээнэ үү:",
+        "Банк: {bankName}",
+        "Хүлээн авагч: {accountHolder}",
+        "Данс: {accountNumber}",
+        "Гүйлгээний утга: {transactionValueHint}",
         "",
-        "We will contact you after the payment window closes.",
+        "Төлбөр баталгаажмагц самбар нээгдэнэ.",
       ].join("\n"),
   };
 }
@@ -69,6 +69,27 @@ export async function getPaymentDetailsConfig() {
   };
 }
 
+export async function getMemberExperienceConfig() {
+  const setting = await db.appSetting.findUnique({
+    where: { key: "member_experience" },
+  });
+
+  const value =
+    (setting?.value as {
+      coachingCtaLabel?: string;
+      coachingCtaUrl?: string;
+      supportCtaLabel?: string;
+      supportCtaUrl?: string;
+    } | null) ?? null;
+
+  return {
+    coachingCtaLabel: value?.coachingCtaLabel ?? "Коучингийн цаг захиалах",
+    coachingCtaUrl: value?.coachingCtaUrl ?? "https://t.me/tradearenapro",
+    supportCtaLabel: value?.supportCtaLabel ?? "Дэмжлэгтэй холбогдох",
+    supportCtaUrl: value?.supportCtaUrl ?? "https://t.me/tradearenapro",
+  };
+}
+
 export async function saveSettings(input: {
   defaultScheduleInput: string;
   timezone: string;
@@ -78,6 +99,10 @@ export async function saveSettings(input: {
   accountHolder: string;
   accountNumber: string;
   transactionValueHint: string;
+  coachingCtaLabel: string;
+  coachingCtaUrl: string;
+  supportCtaLabel: string;
+  supportCtaUrl: string;
 }) {
   const updateTimes = input.defaultScheduleInput
     .split(",")
@@ -115,6 +140,26 @@ export async function saveSettings(input: {
           accountHolder: input.accountHolder,
           accountNumber: input.accountNumber,
           transactionValueHint: input.transactionValueHint,
+        },
+      },
+    }),
+    db.appSetting.upsert({
+      where: { key: "member_experience" },
+      update: {
+        value: {
+          coachingCtaLabel: input.coachingCtaLabel,
+          coachingCtaUrl: input.coachingCtaUrl,
+          supportCtaLabel: input.supportCtaLabel,
+          supportCtaUrl: input.supportCtaUrl,
+        },
+      },
+      create: {
+        key: "member_experience",
+        value: {
+          coachingCtaLabel: input.coachingCtaLabel,
+          coachingCtaUrl: input.coachingCtaUrl,
+          supportCtaLabel: input.supportCtaLabel,
+          supportCtaUrl: input.supportCtaUrl,
         },
       },
     }),

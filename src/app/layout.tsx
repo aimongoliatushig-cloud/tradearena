@@ -15,8 +15,8 @@ const manrope = Manrope({
 });
 
 export const metadata: Metadata = {
-  title: "tradearena.pro | FTMO Challenge Rooms",
-  description: "FTMO challenge room-уудын public leaderboard болон admin удирдлагын платформ.",
+  title: "tradearena.pro | Багц, сургалт, FTMO өрөөнүүд",
+  description: "TradeArena багц, сургалт, нөөц, самбар болон FTMO өрөөний удирдлагын платформ.",
 };
 
 export default async function RootLayout({
@@ -34,7 +34,7 @@ export default async function RootLayout({
           <div className="flex min-h-screen flex-col">
             <header className="border-b border-white/10 bg-[#071019]/90 backdrop-blur">
               <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
-                <div className="text-xs uppercase tracking-[0.24em] text-white/40">{userId ? "Хэрэглэгч нэвтэрсэн" : "Нэвтрэх боломжтой"}</div>
+                <div className="text-xs uppercase tracking-[0.24em] text-white/40">{userId ? "Гишүүн нэвтэрсэн" : "Нэвтрэх боломжтой"}</div>
                 <div className="flex items-center gap-2">
                   <Show when="signed-out">
                     <SignInButton>

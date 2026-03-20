@@ -27,6 +27,7 @@ enum RoomPublicStatus {
 enum RoomLifecycleStatus {
   SIGNUP_OPEN
   READY_TO_START
+  AWAITING_DECISION
   ACTIVE
   EXPIRED
   COMPLETED
@@ -86,6 +87,58 @@ enum BlogPostStatus {
   PUBLISHED
 }
 
+enum CourseAccessLevel {
+  BASIC
+  TRADING_PLAN
+  INTERMEDIATE
+  ADVANCED
+  FULL_ADVANCED
+}
+
+enum PaymentProvider {
+  MANUAL
+}
+
+enum PaymentStatus {
+  PENDING_SUBMISSION
+  PENDING_CONFIRMATION
+  CONFIRMED
+  CANCELLED
+}
+
+enum PackageEnrollmentStatus {
+  PENDING_PAYMENT
+  PENDING_CONFIRMATION
+  ENROLLED
+  AWAITING_DECISION
+  MERGED
+  CANCELLED
+}
+
+enum EnrollmentDecisionChoice {
+  MERGE
+  WAIT
+}
+
+enum ResourceType {
+  STRATEGY
+  INDICATOR
+  TOOL
+}
+
+enum EnrollmentAuditType {
+  CREATED
+  PAYMENT_SUBMITTED
+  PAYMENT_CONFIRMED
+  ROOM_ASSIGNED
+  ROOM_MOVED
+  ROOM_MERGED
+  WAIT_SELECTED
+  MERGE_SELECTED
+  CANCELLED
+  NOTE
+}
+
 model AdminUser {
   id           String         @id @default(cuid())
   email        String         @unique
@@ -128,17 +181,31 @@ model ChallengeRoom {
   leaderTraderId      String?
   winnerTraderId      String?
   winnerDeclaredAt    DateTime?
+  isPackageRoom       Boolean             @default(false)
+  packageTierId       String?
+  roomSequence        Int?
+  decisionDeadlineAt  DateTime?
+  mergeTargetRoomId   String?
   createdAt           DateTime            @default(now())
   updatedAt           DateTime            @updatedAt
   applicants          Applicant[]
   traders             Trader[]
   jobLogs             JobRunLog[]
   notifications       NotificationDispatch[]
+  packageEnrollments  PackageEnrollment[]
+  packageTier         PackageTier?        @relation(fields: [packageTierId], references: [id], onDelete: SetNull)
+  mergeTargetRoom     ChallengeRoom?      @relation("PackageRoomMergeTarget", fields: [mergeTargetRoomId], references: [id], onDelete: SetNull)
+  mergedSourceRooms   ChallengeRoom[]     @relation("PackageRoomMergeTarget")
+  auditLogMovesFrom   EnrollmentAuditLog[] @relation("EnrollmentAuditFromRoom")
+  auditLogMovesTo     EnrollmentAuditLog[] @relation("EnrollmentAuditToRoom")
   leaderTrader        Trader?             @relation("RoomLeader", fields: [leaderTraderId], references: [id], onDelete: SetNull)
   winnerTrader        Trader?             @relation("RoomWinner", fields: [winnerTraderId], references: [id], onDelete: SetNull)
 
   @@index([lifecycleStatus, startDate])
   @@index([accountSize, step])
+  @@index([isPackageRoom, packageTierId, lifecycleStatus])
+  @@index([packageTierId, roomSequence])
+  @@unique([packageTierId, roomSequence])
 }
 
 model Trader {
@@ -317,4 +384,165 @@ model BlogPost {
 
   @@index([status, publishedAt])
   @@index([categoryId, publishedAt])
+}
+
+model PackageTier {
+  id                 String               @id @default(cuid())
+  slug               String               @unique
+  nameMn             String
+  accountSize        AccountSize          @unique
+  priceUsd           Float
+  maxUsers           Int                  @default(10)
+  featuresMn         String[]             @default([])
+  strategyCount      Int                  @default(0)
+  includesCoaching   Boolean              @default(false)
+  coachingHours      Int                  @default(0)
+  includesIndicators Boolean              @default(false)
+  courseAccessLevel  CourseAccessLevel
+  prioritySupport    Boolean              @default(false)
+  sortOrder          Int                  @default(0)
+  isActive           Boolean              @default(true)
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+  rooms              ChallengeRoom[]
+  courses            CoursePackageTier[]
+  resources          ResourcePackageTier[]
+  payments           PaymentRecord[]
+  enrollments        PackageEnrollment[]
+
+  @@index([isActive, sortOrder])
+}
+
+model PaymentRecord {
+  id                  String         @id @default(cuid())
+  clerkUserId         String
+  packageTierId       String
+  customerName        String?
+  customerEmail       String?
+  provider            PaymentProvider @default(MANUAL)
+  status              PaymentStatus   @default(PENDING_SUBMISSION)
+  amountUsd           Float
+  currency            String          @default("USD")
+  reference           String?
+  proofNote           String?
+  proofUrl            String?
+  metadata            Json?
+  submittedAt         DateTime?
+  confirmedAt         DateTime?
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+  packageTier         PackageTier       @relation(fields: [packageTierId], references: [id], onDelete: Restrict)
+  enrollment          PackageEnrollment?
+
+  @@index([clerkUserId, createdAt])
+  @@index([status, createdAt])
+  @@index([packageTierId, createdAt])
+}
+
+model PackageEnrollment {
+  id             String                   @id @default(cuid())
+  clerkUserId    String
+  packageTierId  String
+  roomId         String?
+  paymentId      String?                  @unique
+  status         PackageEnrollmentStatus  @default(PENDING_PAYMENT)
+  decisionChoice EnrollmentDecisionChoice?
+  unlockedAt     DateTime?
+  decidedAt      DateTime?
+  createdAt      DateTime                 @default(now())
+  updatedAt      DateTime                 @updatedAt
+  packageTier    PackageTier              @relation(fields: [packageTierId], references: [id], onDelete: Restrict)
+  room           ChallengeRoom?           @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  payment        PaymentRecord?           @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+  progress       CourseProgress[]
+  auditLogs      EnrollmentAuditLog[]
+
+  @@index([clerkUserId, createdAt])
+  @@index([clerkUserId, status, createdAt])
+  @@index([roomId, status])
+  @@index([packageTierId, status])
+}
+
+model Course {
+  id            String             @id @default(cuid())
+  slug          String             @unique
+  titleMn       String
+  descriptionMn String?
+  videoUrl      String?
+  textContent   String?
+  pdfUrls       String[]           @default([])
+  sortOrder     Int                @default(0)
+  isPublished   Boolean            @default(true)
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  packageAccess CoursePackageTier[]
+  progress      CourseProgress[]
+
+  @@index([isPublished, sortOrder])
+}
+
+model CoursePackageTier {
+  courseId      String
+  packageTierId String
+  course        Course      @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  packageTier   PackageTier @relation(fields: [packageTierId], references: [id], onDelete: Cascade)
+
+  @@id([courseId, packageTierId])
+}
+
+model Resource {
+  id            String                @id @default(cuid())
+  titleMn       String
+  descriptionMn String?
+  type          ResourceType
+  linkUrl       String
+  sortOrder     Int                   @default(0)
+  isPublished   Boolean               @default(true)
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+  packageAccess ResourcePackageTier[]
+
+  @@index([type, isPublished, sortOrder])
+}
+
+model ResourcePackageTier {
+  resourceId    String
+  packageTierId String
+  resource      Resource    @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  packageTier   PackageTier @relation(fields: [packageTierId], references: [id], onDelete: Cascade)
+
+  @@id([resourceId, packageTierId])
+}
+
+model CourseProgress {
+  id              String            @id @default(cuid())
+  clerkUserId     String
+  courseId        String
+  enrollmentId    String?
+  percentComplete Int               @default(0)
+  startedAt       DateTime?
+  completedAt     DateTime?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  course          Course            @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  enrollment      PackageEnrollment? @relation(fields: [enrollmentId], references: [id], onDelete: SetNull)
+
+  @@unique([clerkUserId, courseId])
+  @@index([enrollmentId])
+}
+
+model EnrollmentAuditLog {
+  id          String              @id @default(cuid())
+  enrollmentId String
+  type        EnrollmentAuditType
+  message     String
+  actorId     String?
+  fromRoomId  String?
+  toRoomId    String?
+  createdAt   DateTime            @default(now())
+  enrollment  PackageEnrollment   @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  fromRoom    ChallengeRoom?      @relation("EnrollmentAuditFromRoom", fields: [fromRoomId], references: [id], onDelete: SetNull)
+  toRoom      ChallengeRoom?      @relation("EnrollmentAuditToRoom", fields: [toRoomId], references: [id], onDelete: SetNull)
+
+  @@index([enrollmentId, createdAt])
 }

@@ -1,23 +1,28 @@
 export const dynamic = "force-dynamic";
 
+import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { SubmitButton } from "@/components/forms/submit-button";
 import { RoomForm } from "@/components/admin/room-form";
 import { TraderForm } from "@/components/admin/trader-form";
+import { SubmitButton } from "@/components/forms/submit-button";
 import { FlashMessage } from "@/components/shared/flash-message";
 import { StatusBadge } from "@/components/shared/status-badge";
+import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatCurrency, formatDateTime, formatPercent } from "@/lib/format";
 import { buildTraderCompletionStatus, getTotalRiskValue } from "@/lib/ftmo-rules";
-import { roomStatusLabels } from "@/lib/labels";
+import { packageEnrollmentStatusLabels, paymentStatusLabels, roomStatusLabels } from "@/lib/labels";
 import {
   deleteTraderFormAction,
+  mergePackageRoomsAction,
+  moveEnrollmentAction,
   refreshRoomAction,
   refreshTraderAction,
   setTraderCompletionRecordedAction,
   setTraderViolationAction,
 } from "@/server/actions/admin-actions";
+import { listPackageRoomsForAdmin } from "@/server/services/enrollment-service";
 import { getAdminRoomDetail } from "@/server/services/room-service";
 
 export default async function AdminRoomDetailPage({
@@ -33,6 +38,115 @@ export default async function AdminRoomDetailPage({
 
   if (!room) {
     notFound();
+  }
+
+  if (room.isPackageRoom) {
+    const rooms = await listPackageRoomsForAdmin();
+    const siblingRooms = rooms.filter((item) => item.packageTierId === room.packageTierId && item.id !== room.id);
+    const activeMembers = room.packageEnrollments.filter((item) => item.status === "ENROLLED" || item.status === "AWAITING_DECISION");
+
+    return (
+      <section className="space-y-6">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-semibold text-white">{room.title}</h1>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <StatusBadge label={room.packageTier?.nameMn ?? "Багцгүй"} tone="info" />
+              <StatusBadge label={roomStatusLabels[room.lifecycleStatus]} tone={room.lifecycleStatus === "AWAITING_DECISION" ? "warning" : "success"} />
+            </div>
+          </div>
+          <Button variant="outline" render={<Link href="/admin/rooms" />}>
+            Жагсаалт руу буцах
+          </Button>
+        </div>
+
+        <FlashMessage
+          success={typeof flash.success === "string" ? flash.success : undefined}
+          error={typeof flash.error === "string" ? flash.error : undefined}
+        />
+
+        <div className="grid gap-5 md:grid-cols-3">
+          <MetricBox label="Идэвхтэй гишүүн" value={`${activeMembers.length}/${room.maxTraderCapacity}`} />
+          <MetricBox label="Өрөөний дараалал" value={String(room.roomSequence ?? "-")} />
+          <MetricBox label="48 цагийн хугацаа" value={formatDateTime(room.decisionDeadlineAt)} />
+        </div>
+
+        {siblingRooms.length ? (
+          <div className="glass-panel p-6">
+            <h2 className="text-xl font-semibold text-white">Өрөө нэгтгэх</h2>
+            <form action={mergePackageRoomsAction} className="mt-4 flex flex-wrap items-center gap-3">
+              <input type="hidden" name="sourceRoomId" value={room.id} />
+              <input type="hidden" name="returnPath" value={`/admin/rooms/${room.id}`} />
+              <select name="targetRoomId" defaultValue={siblingRooms[0]?.id} className="flex h-11 rounded-2xl border border-white/12 bg-slate-950/60 px-4 text-white outline-none">
+                {siblingRooms.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.title}
+                  </option>
+                ))}
+              </select>
+              <SubmitButton>Нэгтгэх</SubmitButton>
+            </form>
+          </div>
+        ) : null}
+
+        <div className="space-y-4">
+          {room.packageEnrollments.map((enrollment) => {
+            const targetRooms = siblingRooms.filter((item) => item.id !== enrollment.roomId);
+
+            return (
+              <div key={enrollment.id} className="glass-panel p-5">
+                <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+                  <div>
+                    <div className="text-lg font-semibold text-white">
+                      {enrollment.payment?.customerName || enrollment.payment?.customerEmail || enrollment.clerkUserId}
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <StatusBadge label={packageEnrollmentStatusLabels[enrollment.status]} tone={enrollment.status === "ENROLLED" ? "success" : "warning"} />
+                      {enrollment.payment ? (
+                        <StatusBadge
+                          label={paymentStatusLabels[enrollment.payment.status]}
+                          tone={enrollment.payment.status === "CONFIRMED" ? "success" : "warning"}
+                        />
+                      ) : null}
+                    </div>
+                    <div className="mt-3 text-sm leading-7 text-white/60">
+                      <div>Reference: {enrollment.payment?.reference || "-"}</div>
+                      <div>И-мэйл: {enrollment.payment?.customerEmail || "-"}</div>
+                      <div>Тайлбар: {enrollment.payment?.proofNote || "-"}</div>
+                    </div>
+                  </div>
+
+                  {targetRooms.length ? (
+                    <form action={moveEnrollmentAction} className="flex flex-wrap items-center gap-3">
+                      <input type="hidden" name="enrollmentId" value={enrollment.id} />
+                      <input type="hidden" name="returnPath" value={`/admin/rooms/${room.id}`} />
+                      <select name="roomId" defaultValue={targetRooms[0]?.id} className="flex h-10 rounded-2xl border border-white/12 bg-slate-950/60 px-4 text-white outline-none">
+                        {targetRooms.map((target) => (
+                          <option key={target.id} value={target.id}>
+                            {target.title}
+                          </option>
+                        ))}
+                      </select>
+                      <SubmitButton size="sm">Өөр өрөө рүү шилжүүлэх</SubmitButton>
+                    </form>
+                  ) : null}
+                </div>
+
+                {enrollment.auditLogs.length ? (
+                  <div className="mt-4 grid gap-2">
+                    {enrollment.auditLogs.map((log) => (
+                      <div key={log.id} className="rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-3 text-sm text-white/60">
+                        {log.message}
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            );
+          })}
+        </div>
+      </section>
+    );
   }
 
   const activeTraderCount = room.traders.filter((trader) => trader.active).length;
@@ -68,7 +182,7 @@ export default async function AdminRoomDetailPage({
         <form action={refreshRoomAction} className="space-y-2 text-right">
           <input type="hidden" name="roomId" value={room.id} />
           <input type="hidden" name="returnPath" value={`/admin/rooms/${room.id}`} />
-          <SubmitButton>FTMO бүх link-ээс бодит дата татах</SubmitButton>
+          <SubmitButton>FTMO бүх link-ээс дата татах</SubmitButton>
           <p className="text-xs text-white/55">{activeTraderCount} идэвхтэй трейдерийн MetriX link дарааллаар уншигдана.</p>
         </form>
       </div>
@@ -77,10 +191,6 @@ export default async function AdminRoomDetailPage({
         success={typeof flash.success === "string" ? flash.success : undefined}
         error={typeof flash.error === "string" ? flash.error : undefined}
       />
-
-      <div className="glass-panel px-5 py-4 text-sm text-white/70">
-        Энэ үйлдэл нь өрөөний бүх идэвхтэй FTMO MetriX link-ийг Playwright-аар нээж, snapshot түүх, одоогийн ашиг, зөрчилтэй эсэх болон leaderboard rank-ийг бүгдийг шинэчилнэ.
-      </div>
 
       <RoomForm room={room} returnPath={`/admin/rooms/${room.id}`} />
 
@@ -144,20 +254,6 @@ export default async function AdminRoomDetailPage({
         ))}
       </div>
 
-      <div className="glass-panel p-6">
-        <h2 className="mb-4 text-xl font-semibold text-white">Сүүлийн өрөөний лог</h2>
-        <div className="space-y-3">
-          {room.jobLogs.map((log) => (
-            <div key={log.id} className="rounded-2xl border border-white/10 bg-white/5 p-4">
-              <div className="flex items-center justify-between gap-3">
-                <div className="font-medium text-white">{log.jobType}</div>
-                <div className="text-xs text-white/45">{formatDateTime(log.startedAt)}</div>
-              </div>
-              <div className="mt-2 text-sm text-white/60">{log.message ?? "-"}</div>
-            </div>
-          ))}
-        </div>
-      </div>
       <div className="glass-panel p-6">
         <div className="mb-4 space-y-2">
           <h2 className="text-xl font-semibold text-white">Reporting</h2>
@@ -235,5 +331,14 @@ export default async function AdminRoomDetailPage({
         </Table>
       </div>
     </section>
+  );
+}
+
+function MetricBox({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="glass-panel p-5">
+      <div className="text-sm text-white/55">{label}</div>
+      <div className="mt-2 text-3xl font-semibold tracking-[-0.03em] text-white">{value}</div>
+    </div>
   );
 }

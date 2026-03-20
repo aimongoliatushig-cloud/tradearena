@@ -94,6 +94,10 @@ export const settingsSchema = z.object({
   accountHolder: z.string().trim().min(2),
   accountNumber: z.string().trim().min(4),
   transactionValueHint: z.string().trim().min(4),
+  coachingCtaLabel: z.string().trim().min(2),
+  coachingCtaUrl: z.string().trim().url("Коучингийн холбоос зөв биш байна."),
+  supportCtaLabel: z.string().trim().min(2),
+  supportCtaUrl: z.string().trim().url("Дэмжлэгийн холбоос зөв биш байна."),
 });
 
 export const blogCategorySchema = z.object({

@@ -2,6 +2,9 @@ import {
   AccountSize,
   ApplicantStatus,
   ChallengeStep,
+  PackageEnrollmentStatus,
+  PaymentProvider,
+  PaymentStatus,
   PrismaClient,
   RoomLifecycleStatus,
   RoomPublicStatus,
@@ -10,6 +13,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import bcrypt from "bcryptjs";
 import dayjs from "dayjs";
 
+import { DEFAULT_COURSE_SEEDS, DEFAULT_RESOURCE_SEEDS, PACKAGE_CATALOG } from "../src/lib/package-catalog";
 import { getDefaultEntryFeeUsd } from "../src/lib/pricing";
 
 const prisma = new PrismaClient({
@@ -44,6 +48,51 @@ async function upsertApplicant(input: {
 
   return prisma.applicant.create({
     data: input,
+  });
+}
+
+async function upsertPendingEnrollmentFromApplicant(input: {
+  clerkUserId?: string | null;
+  fullName: string;
+  email: string;
+  packageTierId: string;
+  priceUsd: number;
+}) {
+  if (!input.clerkUserId) {
+    return null;
+  }
+
+  const existing = await prisma.packageEnrollment.findFirst({
+    where: {
+      clerkUserId: input.clerkUserId,
+      packageTierId: input.packageTierId,
+    },
+  });
+
+  if (existing) {
+    return existing;
+  }
+
+  const payment = await prisma.paymentRecord.create({
+    data: {
+      clerkUserId: input.clerkUserId,
+      packageTierId: input.packageTierId,
+      customerName: input.fullName,
+      customerEmail: input.email,
+      provider: PaymentProvider.MANUAL,
+      status: PaymentStatus.PENDING_SUBMISSION,
+      amountUsd: input.priceUsd,
+      currency: "USD",
+    },
+  });
+
+  return prisma.packageEnrollment.create({
+    data: {
+      clerkUserId: input.clerkUserId,
+      packageTierId: input.packageTierId,
+      paymentId: payment.id,
+      status: PackageEnrollmentStatus.PENDING_PAYMENT,
+    },
   });
 }
 
@@ -137,6 +186,157 @@ async function main() {
       },
     },
   });
+
+  await prisma.appSetting.upsert({
+    where: { key: "member_experience" },
+    update: {
+      value: {
+        coachingCtaLabel: "Коучингийн цаг захиалах",
+        coachingCtaUrl: "https://t.me/tradearenapro",
+        supportCtaLabel: "Дэмжлэгтэй холбогдох",
+        supportCtaUrl: "https://t.me/tradearenapro",
+      },
+    },
+    create: {
+      key: "member_experience",
+      value: {
+        coachingCtaLabel: "Коучингийн цаг захиалах",
+        coachingCtaUrl: "https://t.me/tradearenapro",
+        supportCtaLabel: "Дэмжлэгтэй холбогдох",
+        supportCtaUrl: "https://t.me/tradearenapro",
+      },
+    },
+  });
+
+  const packageTierMap = new Map<string, { id: string; priceUsd: number; maxUsers: number }>();
+
+  for (const item of PACKAGE_CATALOG) {
+    const packageTier = await prisma.packageTier.upsert({
+      where: { slug: item.slug },
+      update: {
+        nameMn: item.nameMn,
+        accountSize: item.accountSize,
+        priceUsd: item.priceUsd,
+        maxUsers: 10,
+        featuresMn: item.featuresMn,
+        strategyCount: item.strategyCount,
+        includesCoaching: item.includesCoaching,
+        coachingHours: item.coachingHours,
+        includesIndicators: item.includesIndicators,
+        courseAccessLevel: item.courseAccessLevel,
+        prioritySupport: item.prioritySupport,
+        sortOrder: PACKAGE_CATALOG.findIndex((candidate) => candidate.slug === item.slug),
+        isActive: true,
+      },
+      create: {
+        slug: item.slug,
+        nameMn: item.nameMn,
+        accountSize: item.accountSize,
+        priceUsd: item.priceUsd,
+        maxUsers: 10,
+        featuresMn: item.featuresMn,
+        strategyCount: item.strategyCount,
+        includesCoaching: item.includesCoaching,
+        coachingHours: item.coachingHours,
+        includesIndicators: item.includesIndicators,
+        courseAccessLevel: item.courseAccessLevel,
+        prioritySupport: item.prioritySupport,
+        sortOrder: PACKAGE_CATALOG.findIndex((candidate) => candidate.slug === item.slug),
+        isActive: true,
+      },
+    });
+
+    packageTierMap.set(item.slug, {
+      id: packageTier.id,
+      priceUsd: item.priceUsd,
+      maxUsers: packageTier.maxUsers,
+    });
+  }
+
+  for (const courseSeed of DEFAULT_COURSE_SEEDS) {
+    const course = await prisma.course.upsert({
+      where: { slug: courseSeed.slug },
+      update: {
+        titleMn: courseSeed.titleMn,
+        descriptionMn: courseSeed.descriptionMn,
+        videoUrl: courseSeed.videoUrl,
+        textContent: courseSeed.textContent,
+        pdfUrls: [...courseSeed.pdfUrls],
+        sortOrder: courseSeed.sortOrder,
+        isPublished: true,
+      },
+      create: {
+        slug: courseSeed.slug,
+        titleMn: courseSeed.titleMn,
+        descriptionMn: courseSeed.descriptionMn,
+        videoUrl: courseSeed.videoUrl,
+        textContent: courseSeed.textContent,
+        pdfUrls: [...courseSeed.pdfUrls],
+        sortOrder: courseSeed.sortOrder,
+        isPublished: true,
+      },
+    });
+
+    await prisma.coursePackageTier.deleteMany({
+      where: { courseId: course.id },
+    });
+
+    await prisma.coursePackageTier.createMany({
+      data: courseSeed.packageSlugs
+        .map((slug) => packageTierMap.get(slug))
+        .filter(Boolean)
+        .map((pkg) => ({
+          courseId: course.id,
+          packageTierId: pkg!.id,
+        })),
+      skipDuplicates: true,
+    });
+  }
+
+  for (const resourceSeed of DEFAULT_RESOURCE_SEEDS) {
+    const resource = await prisma.resource.upsert({
+      where: {
+        id:
+          (
+            await prisma.resource.findFirst({
+              where: { titleMn: resourceSeed.titleMn, type: resourceSeed.type },
+              select: { id: true },
+            })
+          )?.id ?? "missing",
+      },
+      update: {
+        titleMn: resourceSeed.titleMn,
+        descriptionMn: resourceSeed.descriptionMn,
+        type: resourceSeed.type,
+        linkUrl: resourceSeed.linkUrl,
+        sortOrder: resourceSeed.sortOrder,
+        isPublished: true,
+      },
+      create: {
+        titleMn: resourceSeed.titleMn,
+        descriptionMn: resourceSeed.descriptionMn,
+        type: resourceSeed.type,
+        linkUrl: resourceSeed.linkUrl,
+        sortOrder: resourceSeed.sortOrder,
+        isPublished: true,
+      },
+    });
+
+    await prisma.resourcePackageTier.deleteMany({
+      where: { resourceId: resource.id },
+    });
+
+    await prisma.resourcePackageTier.createMany({
+      data: resourceSeed.packageSlugs
+        .map((slug) => packageTierMap.get(slug))
+        .filter(Boolean)
+        .map((pkg) => ({
+          resourceId: resource.id,
+          packageTierId: pkg!.id,
+        })),
+      skipDuplicates: true,
+    });
+  }
 
   const active10kRoom = await prisma.challengeRoom.upsert({
     where: { slug: "blue-alpha-step-1" },
@@ -542,7 +742,7 @@ async function main() {
     });
   }
 
-  await upsertApplicant({
+  const applicant10kSolongo = await upsertApplicant({
     roomId: signupRooms[0].id,
     clerkUserId: "user_seed_10k_1",
     fullName: "E. Solongo",
@@ -553,7 +753,7 @@ async function main() {
     status: ApplicantStatus.PENDING,
   });
 
-  await upsertApplicant({
+  const applicant10kAldar = await upsertApplicant({
     roomId: signupRooms[0].id,
     clerkUserId: "user_seed_10k_2",
     fullName: "B. Aldar",
@@ -564,7 +764,7 @@ async function main() {
     status: ApplicantStatus.PENDING,
   });
 
-  await upsertApplicant({
+  const applicant50kNamuun = await upsertApplicant({
     roomId: signupRooms[2].id,
     clerkUserId: "user_seed_50k_1",
     fullName: "M. Namuun",
@@ -574,6 +774,104 @@ async function main() {
     desiredAccountSize: AccountSize.SIZE_50K,
     status: ApplicantStatus.PENDING,
   });
+
+  const packageByAccountSize = new Map(PACKAGE_CATALOG.map((item) => [item.accountSize, item]));
+
+  for (const applicant of [applicant10kSolongo, applicant10kAldar, applicant50kNamuun]) {
+    const packageSeed = packageByAccountSize.get(applicant.desiredAccountSize);
+    const packageTier = packageSeed ? packageTierMap.get(packageSeed.slug) : null;
+
+    if (packageTier) {
+      await upsertPendingEnrollmentFromApplicant({
+        clerkUserId: applicant.clerkUserId,
+        fullName: applicant.fullName,
+        email: applicant.email,
+        packageTierId: packageTier.id,
+        priceUsd: packageTier.priceUsd,
+      });
+    }
+  }
+
+  const seedMemberPackage = packageTierMap.get("50k-bagts");
+
+  if (seedMemberPackage) {
+    const existingRoom = await prisma.challengeRoom.findFirst({
+      where: {
+        isPackageRoom: true,
+        packageTierId: seedMemberPackage.id,
+        roomSequence: 1,
+      },
+    });
+
+    const packageRoom =
+      existingRoom ??
+      (await prisma.challengeRoom.create({
+        data: {
+          title: "50K Багц Өрөө 1",
+          slug: "50k-bagts-room-1",
+          description: "50K багцын demo өрөө.",
+          accountSize: AccountSize.SIZE_50K,
+          step: ChallengeStep.STEP_1,
+          entryFeeUsd: seedMemberPackage.priceUsd,
+          startDate: dayjs().toDate(),
+          endDate: dayjs().add(30, "day").toDate(),
+          publicStatus: RoomPublicStatus.HIDDEN,
+          lifecycleStatus: RoomLifecycleStatus.SIGNUP_OPEN,
+          maxTraderCapacity: seedMemberPackage.maxUsers,
+          updateTimes: [],
+          updateTimezone: "Asia/Ulaanbaatar",
+          isPackageRoom: true,
+          packageTierId: seedMemberPackage.id,
+          roomSequence: 1,
+          decisionDeadlineAt: dayjs().add(48, "hour").toDate(),
+        },
+      }));
+
+    const existingConfirmedPayment = await prisma.paymentRecord.findFirst({
+      where: {
+        clerkUserId: "member_seed_50k",
+        packageTierId: seedMemberPackage.id,
+      },
+    });
+
+    const payment =
+      existingConfirmedPayment ??
+      (await prisma.paymentRecord.create({
+        data: {
+          clerkUserId: "member_seed_50k",
+          packageTierId: seedMemberPackage.id,
+          customerName: "Seed Member",
+          customerEmail: "member50k@example.com",
+          provider: PaymentProvider.MANUAL,
+          status: PaymentStatus.CONFIRMED,
+          amountUsd: seedMemberPackage.priceUsd,
+          currency: "USD",
+          reference: "SEED-50K",
+          submittedAt: new Date(),
+          confirmedAt: new Date(),
+        },
+      }));
+
+    const existingEnrollment = await prisma.packageEnrollment.findFirst({
+      where: {
+        clerkUserId: "member_seed_50k",
+        packageTierId: seedMemberPackage.id,
+      },
+    });
+
+    if (!existingEnrollment) {
+      await prisma.packageEnrollment.create({
+        data: {
+          clerkUserId: "member_seed_50k",
+          packageTierId: seedMemberPackage.id,
+          paymentId: payment.id,
+          roomId: packageRoom.id,
+          status: PackageEnrollmentStatus.ENROLLED,
+          unlockedAt: new Date(),
+        },
+      });
+    }
+  }
 }
 
 main()

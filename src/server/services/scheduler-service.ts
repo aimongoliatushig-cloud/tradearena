@@ -2,6 +2,7 @@ import { FetchSource, JobStatus, JobType, RoomLifecycleStatus } from "@prisma/cl
 
 import { db } from "@/lib/db";
 import { dayjs } from "@/lib/dayjs";
+import { evaluateUnderfilledPackageRooms } from "@/server/services/enrollment-service";
 import { sendRoomPerformanceReportIfDue } from "@/server/services/notification-service";
 import { getDefaultScheduleConfig } from "@/server/services/settings-service";
 import { refreshRoomStats, syncRoomLifecycleStatus } from "@/server/services/trader-service";
@@ -58,10 +59,12 @@ export async function runSchedulerTick(reason = "worker") {
   const now = new Date();
   const minuteKey = toMinuteKey(now);
   const lifecycleUpdates = await syncRoomLifecycleStatus();
+  await evaluateUnderfilledPackageRooms(now);
   const defaults = await getDefaultScheduleConfig();
 
   const rooms = await db.challengeRoom.findMany({
     where: {
+      isPackageRoom: false,
       lifecycleStatus: RoomLifecycleStatus.ACTIVE,
     },
     select: {
