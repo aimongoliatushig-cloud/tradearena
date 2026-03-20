@@ -1,5 +1,6 @@
 import {
   ApplicantStatus,
+  BlogPostStatus,
   ChallengeStep,
   JobStatus,
   NotificationChannel,
@@ -10,7 +11,7 @@ import {
   type RoomLifecycleStatus,
 } from "@prisma/client";
 
-import { ACCOUNT_SIZE, NOTIFICATION_KIND, ROOM_LIFECYCLE_STATUS } from "@/lib/prisma-enums";
+import { ACCOUNT_SIZE, BLOG_POST_STATUS, NOTIFICATION_KIND, ROOM_LIFECYCLE_STATUS } from "@/lib/prisma-enums";
 
 export const accountSizeLabels: Record<AccountSize, string> = {
   [ACCOUNT_SIZE.SIZE_10K]: "10K",
@@ -72,4 +73,9 @@ export const notificationStatusLabels: Record<NotificationStatus, string> = {
   [NotificationStatus.SENT]: "Sent",
   [NotificationStatus.FAILED]: "Failed",
   [NotificationStatus.SKIPPED]: "Skipped",
+};
+
+export const blogPostStatusLabels: Record<BlogPostStatus, string> = {
+  [BLOG_POST_STATUS.DRAFT]: "Ноорог",
+  [BLOG_POST_STATUS.PUBLISHED]: "Нийтэлсэн",
 };

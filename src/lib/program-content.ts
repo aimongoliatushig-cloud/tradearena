@@ -92,7 +92,7 @@ export const ourChallengeRuleGroups = [
       {
         number: "2️⃣",
         title: "Ашиглах данс",
-        description: "Бүгд $100,000 Demo account ашиглана.",
+        description: "Оролцогч бүр 10K, 25K, 50K, 100K, эсвэл 200K challenge room-оос сонгож, тухайн хэмжээний Demo account ашиглана.",
       },
       {
         number: "3️⃣",

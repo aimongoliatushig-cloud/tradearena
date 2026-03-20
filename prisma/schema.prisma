@@ -81,6 +81,11 @@ enum NotificationStatus {
   SKIPPED
 }
 
+enum BlogPostStatus {
+  DRAFT
+  PUBLISHED
+}
+
 model AdminUser {
   id           String         @id @default(cuid())
   email        String         @unique
@@ -261,4 +266,55 @@ model SubmissionAttempt {
   createdAt DateTime @default(now())
 
   @@index([route, ipAddress, createdAt])
+}
+
+model BlogCategory {
+  id          String     @id @default(cuid())
+  name        String
+  slug        String     @unique
+  description String?
+  sortOrder   Int        @default(0)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  posts       BlogPost[]
+
+  @@index([sortOrder, name])
+}
+
+model BlogPopup {
+  id          String     @id @default(cuid())
+  title       String
+  body        String
+  imageUrl    String?
+  videoUrl    String?
+  ctaLabel    String
+  ctaUrl      String
+  isActive    Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  posts       BlogPost[]
+
+  @@index([isActive, updatedAt])
+}
+
+model BlogPost {
+  id                       String         @id @default(cuid())
+  title                    String
+  slug                     String         @unique
+  excerpt                  String
+  bodyMarkdown             String
+  coverImageUrl            String
+  categoryId               String
+  status                   BlogPostStatus @default(DRAFT)
+  publishedAt              DateTime?
+  requiresLoginForFullRead Boolean        @default(false)
+  showEndPopup             Boolean        @default(false)
+  popupId                  String?
+  createdAt                DateTime       @default(now())
+  updatedAt                DateTime       @updatedAt
+  category                 BlogCategory   @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  popup                    BlogPopup?     @relation(fields: [popupId], references: [id], onDelete: SetNull)
+
+  @@index([status, publishedAt])
+  @@index([categoryId, publishedAt])
 }

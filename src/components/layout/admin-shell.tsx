@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BarChart3, DatabaseZap, LayoutDashboard, ListChecks, LogOut, Settings, Users } from "lucide-react";
+import { BarChart3, BookOpenText, DatabaseZap, LayoutDashboard, ListChecks, LogOut, Settings, Users } from "lucide-react";
 import type { AdminUser } from "@prisma/client";
 
 import { Button } from "@/components/ui/button";
@@ -8,8 +8,11 @@ import { logoutAdminAction } from "@/server/actions/admin-actions";
 const links = [
   { href: "/admin", label: "Хянах самбар", icon: LayoutDashboard },
   { href: "/admin/rooms", label: "Өрөөнүүд", icon: BarChart3 },
+  { href: "/admin/blog/posts", label: "Блог нийтлэл", icon: BookOpenText },
+  { href: "/admin/blog/categories", label: "Блог ангилал", icon: BookOpenText },
+  { href: "/admin/blog/popups", label: "Блог popup", icon: BookOpenText },
   { href: "/admin/applicants", label: "Өргөдөл", icon: Users },
-  { href: "/admin/traders", label: "Трэйдерүүд", icon: DatabaseZap },
+  { href: "/admin/traders", label: "Трейдерүүд", icon: DatabaseZap },
   { href: "/admin/logs", label: "Логууд", icon: ListChecks },
   { href: "/admin/settings", label: "Тохиргоо", icon: Settings },
 ];

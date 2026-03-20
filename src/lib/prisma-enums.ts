@@ -1,4 +1,4 @@
-import type { AccountSize, NotificationKind, RoomLifecycleStatus } from "@prisma/client";
+import type { AccountSize, BlogPostStatus, NotificationKind, RoomLifecycleStatus } from "@prisma/client";
 
 export const ACCOUNT_SIZE = {
   SIZE_10K: "SIZE_10K",
@@ -44,3 +44,10 @@ export const NOTIFICATION_KIND = {
   ROOM_READY: "ROOM_READY",
   GENERAL_UPDATE: "GENERAL_UPDATE",
 } as const satisfies Record<string, NotificationKind>;
+
+export const BLOG_POST_STATUS = {
+  DRAFT: "DRAFT",
+  PUBLISHED: "PUBLISHED",
+} as const satisfies Record<string, BlogPostStatus>;
+
+export const BLOG_POST_STATUS_OPTIONS = [BLOG_POST_STATUS.DRAFT, BLOG_POST_STATUS.PUBLISHED] as const satisfies readonly BlogPostStatus[];

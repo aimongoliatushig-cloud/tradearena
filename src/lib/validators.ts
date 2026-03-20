@@ -1,5 +1,6 @@
 import {
   ApplicantStatus,
+  BlogPostStatus,
   ChallengeStep,
   RoomPublicStatus,
 } from "@prisma/client";
@@ -95,10 +96,52 @@ export const settingsSchema = z.object({
   transactionValueHint: z.string().trim().min(4),
 });
 
+export const blogCategorySchema = z.object({
+  id: z.string().cuid().optional(),
+  name: z.string().trim().min(2, "Ангиллын нэр оруулна уу."),
+  description: z.string().trim().max(500, "Тайлбар 500 тэмдэгтээс ихгүй байна.").optional(),
+  sortOrder: z.coerce.number().int().min(0).max(9999),
+});
+
+export const blogPopupSchema = z.object({
+  id: z.string().cuid().optional(),
+  title: z.string().trim().min(2, "Popup гарчиг оруулна уу."),
+  body: z.string().trim().min(10, "Popup текст оруулна уу."),
+  imageUrl: z.string().trim().optional(),
+  videoUrl: z
+    .string()
+    .trim()
+    .optional()
+    .refine((value) => !value || z.url().safeParse(value).success, "Зөв видео холбоос оруулна уу."),
+  ctaLabel: z.string().trim().min(2, "Товчны нэр оруулна уу."),
+  ctaUrl: z.string().trim().url("Зөв CTA холбоос оруулна уу."),
+  isActive: z.boolean().default(true),
+});
+
+export const blogPostSchema = z.object({
+  id: z.string().cuid().optional(),
+  title: z.string().trim().min(3, "Нийтлэлийн гарчиг оруулна уу."),
+  excerpt: z.string().trim().max(320, "Товч тайлбар 320 тэмдэгтээс ихгүй байна.").optional(),
+  bodyMarkdown: z.string().trim().min(30, "Нийтлэлийн агуулга хэт богино байна."),
+  coverImageUrl: z.string().trim().min(1, "Зургийн холбоос шаардлагатай."),
+  categoryId: z.string().cuid("Ангилал сонгоно уу."),
+  status: z.nativeEnum(BlogPostStatus),
+  requiresLoginForFullRead: z.boolean().default(false),
+  showEndPopup: z.boolean().default(false),
+  popupId: z.string().cuid().optional(),
+});
+
 export function normalizeFtmoUrl(value: string) {
   const url = new URL(value.trim());
   url.hash = "";
   return url.toString();
+}
+
+export function normalizeOptionalUrl(value?: string | null) {
+  if (!value) return undefined;
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  return new URL(trimmed).toString();
 }
 
 export function parseScheduleInput(value?: string | null) {

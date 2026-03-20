@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ArrowRight, Clock3, Trophy, TrendingUp, Users } from "lucide-react";
 
 import { PublicShell } from "@/components/layout/public-shell";
+import { LatestBlogCarousel } from "@/components/shared/latest-blog-carousel";
 import { PricingComparisonSection } from "@/components/shared/PricingComparisonSection";
 import { RoomCard } from "@/components/shared/room-card";
 import { buttonVariants } from "@/lib/button-variants";
@@ -14,6 +15,7 @@ import { accountSizeLabels } from "@/lib/labels";
 import { formatUsd, getDefaultEntryFeeUsd } from "@/lib/pricing";
 import { cn } from "@/lib/utils";
 import { getApplicantBuckets } from "@/server/services/applicant-service";
+import { listLatestPublishedBlogPosts } from "@/server/services/blog-service";
 import { getPublicHomepageData } from "@/server/services/room-service";
 
 const heroSupportPoints = [
@@ -43,9 +45,10 @@ const heroValueCards = [
 ] as const;
 
 export default async function HomePage() {
-  const [{ activeRooms, historicalRooms, totals }, applicantBuckets] = await Promise.all([
+  const [{ activeRooms, historicalRooms, totals }, applicantBuckets, latestPosts] = await Promise.all([
     getPublicHomepageData(),
     getApplicantBuckets(),
+    listLatestPublishedBlogPosts(),
   ]);
 
   const leaderSummaries = activeRooms.map((room) => {
@@ -280,6 +283,17 @@ export default async function HomePage() {
           </div>
         </div>
       </section>
+
+      <LatestBlogCarousel
+        posts={latestPosts.map((post) => ({
+          id: post.id,
+          slug: post.slug,
+          title: post.title,
+          excerpt: post.excerpt,
+          coverImageUrl: post.coverImageUrl,
+          categoryName: post.category.name,
+        }))}
+      />
 
       <PricingComparisonSection />
 
