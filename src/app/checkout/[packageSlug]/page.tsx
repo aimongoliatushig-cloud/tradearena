@@ -2,12 +2,12 @@ export const dynamic = "force-dynamic";
 
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { SignInButton, SignUpButton } from "@clerk/nextjs";
 import { auth, currentUser } from "@clerk/nextjs/server";
 
 import { PublicShell } from "@/components/layout/public-shell";
+import { ClerkPromptActions } from "@/components/shared/clerk-auth-controls";
 import { FlashMessage } from "@/components/shared/flash-message";
-import { buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/lib/button-variants";
 import { packageEnrollmentStatusLabels, paymentStatusLabels } from "@/lib/labels";
 import { formatUsd } from "@/lib/pricing";
 import { cn } from "@/lib/utils";
@@ -44,14 +44,11 @@ export default async function CheckoutPage({
             <p className="mt-3 text-sm leading-7 text-white/60">
               Энэ багцыг сонгохын тулд эхлээд нэвтэрч, дараа нь төлбөрийн мэдээллээ илгээнэ.
             </p>
-            <div className="mt-6 flex flex-wrap gap-3">
-              <SignInButton mode="modal">
-                <button className={buttonVariants()}>Нэвтрэх</button>
-              </SignInButton>
-              <SignUpButton mode="modal">
-                <button className={cn(buttonVariants({ variant: "outline" }), "border-white/12 text-white")}>Бүртгүүлэх</button>
-              </SignUpButton>
-            </div>
+            <ClerkPromptActions
+              containerClassName="mt-6"
+              returnBackUrl={`/checkout/${packageTier.slug}`}
+              signUpClassName={cn(buttonVariants({ variant: "outline" }), "border-white/12 text-white")}
+            />
           </div>
         </section>
       </PublicShell>
@@ -162,7 +159,8 @@ export default async function CheckoutPage({
                 <div className="mt-6 space-y-4">
                   <h2 className="text-2xl font-semibold text-white">Төлбөрийг шалгаж байна</h2>
                   <p className="text-sm leading-7 text-white/60">
-                    Таны илгээсэн reference болон нотолгоог админ шалгаж байна. Баталгаажмагц багцын эрх автоматаар нээгдэнэ.
+                    Таны илгээсэн reference болон нотолгоог админ шалгаж байна. Баталгаажмагц багцын эрх
+                    автоматаар нээгдэнэ.
                   </p>
                   <Link href="/dashboard" className={buttonVariants()}>
                     Хяналтын самбар
@@ -200,7 +198,8 @@ export default async function CheckoutPage({
                     />
                   </div>
                   <div className="rounded-[1.4rem] border border-white/10 bg-white/[0.04] px-4 py-4 text-sm leading-7 text-white/62">
-                    Төлбөрийн мэдээллийг илгээсний дараа админ баталгаажуулж, өрөө болон бүх эрх автоматаар нээгдэнэ.
+                    Төлбөрийн мэдээллийг илгээсний дараа админ баталгаажуулж, өрөө болон бүх эрх автоматаар
+                    нээгдэнэ.
                   </div>
                   <button type="submit" className={cn(buttonVariants(), "w-full justify-center rounded-[1.2rem]")}>
                     Төлбөрийн мэдээлэл илгээх

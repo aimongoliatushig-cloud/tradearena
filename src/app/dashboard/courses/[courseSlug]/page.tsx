@@ -6,7 +6,7 @@ import { auth } from "@clerk/nextjs/server";
 import { FileText, PlayCircle } from "lucide-react";
 
 import { FlashMessage } from "@/components/shared/flash-message";
-import { buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/lib/button-variants";
 import { saveCourseProgressAction } from "@/server/actions/member-actions";
 import { getAccessibleCourseBySlug } from "@/server/services/course-service";
 import { getCurrentEnrollmentForUser } from "@/server/services/enrollment-service";

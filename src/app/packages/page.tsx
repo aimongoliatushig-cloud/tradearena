@@ -7,7 +7,7 @@ import { auth } from "@clerk/nextjs/server";
 import { PublicShell } from "@/components/layout/public-shell";
 import { FlashMessage } from "@/components/shared/flash-message";
 import { StatusBadge } from "@/components/shared/status-badge";
-import { buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/lib/button-variants";
 import { courseAccessLevelLabels } from "@/lib/labels";
 import { formatUsd } from "@/lib/pricing";
 import { cn } from "@/lib/utils";

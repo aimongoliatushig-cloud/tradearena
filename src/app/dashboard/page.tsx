@@ -8,7 +8,7 @@ import type { ComponentType } from "react";
 
 import { FlashMessage } from "@/components/shared/flash-message";
 import { StatusBadge } from "@/components/shared/status-badge";
-import { buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/lib/button-variants";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { packageEnrollmentStatusLabels, paymentStatusLabels } from "@/lib/labels";
 import { formatDateTime } from "@/lib/format";
