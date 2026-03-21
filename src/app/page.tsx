@@ -223,7 +223,7 @@ export default async function HomePage() {
                 <div>
                   <div className="font-medium text-white">48 цагийн шийдвэр</div>
                   <div className="mt-1 leading-6">
-                    Өрөө 48 цагт дүүрэхгүй бол нэгтгэх эсвэл хүлээх сонголт нээгдэж, админ гар аргаар шилжүүлэх боломжтой.
+                    Өрөө 48 цагт дүүрэхгүй бол нэгтгэх эсвэл хүлээх сонголт нээгдэж, шийдвэрийн дараагийн алхам автоматаар үргэлжилнэ.
                   </div>
                 </div>
               </div>
@@ -301,7 +301,7 @@ export default async function HomePage() {
             </div>
             <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.03] p-4">
               <div className="font-medium text-white">Өргөтгөхөд бэлэн удирдлага</div>
-              <div className="mt-1 leading-6">Админ багц, сургалт, нөөц, элсэлт, өрөөний дүүргэлтийг тус тусад нь удирдана.</div>
+              <div className="mt-1 leading-6">Багц, сургалт, нөөц, элсэлт, өрөөний дүүргэлтийг нэг цэгээс уялдуулан удирдана.</div>
             </div>
             <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.03] p-4">
               <div className="font-medium text-white">Зөвхөн стрийм дамжуулалт</div>

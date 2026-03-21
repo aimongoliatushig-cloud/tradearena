@@ -94,9 +94,7 @@ export default function AppError({
           <Button variant="secondary" render={<Link href="/" />}>
             Нүүр хуудас руу
           </Button>
-          <Button variant="outline" render={<Link href="/admin/login" />}>
-            Админ хэсэг
-          </Button>
+
         </div>
       </div>
     </div>

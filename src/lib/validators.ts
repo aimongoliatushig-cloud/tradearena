@@ -17,11 +17,6 @@ const ftmoUrlSchema = z
     return url.protocol === "https:" && url.hostname.toLowerCase().endsWith("ftmo.com");
   }, "A public FTMO MetriX URL is required.");
 
-export const adminLoginSchema = z.object({
-  email: z.string().trim().email("Enter a valid email."),
-  password: z.string().min(8, "Password must be at least 8 characters."),
-});
-
 export const applicantFormSchema = z.object({
   fullName: z.string().trim().min(2, "Овог нэрээ оруулна уу."),
   email: z.string().trim().email("Зөв и-мэйл хаяг оруулна уу."),

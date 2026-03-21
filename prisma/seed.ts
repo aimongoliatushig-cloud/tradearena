@@ -10,7 +10,6 @@ import {
   RoomPublicStatus,
 } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
-import bcrypt from "bcryptjs";
 import dayjs from "dayjs";
 
 import { DEFAULT_COURSE_SEEDS, DEFAULT_RESOURCE_SEEDS, PACKAGE_CATALOG } from "../src/lib/package-catalog";
@@ -97,21 +96,6 @@ async function upsertPendingEnrollmentFromApplicant(input: {
 }
 
 async function main() {
-  const passwordHash = await bcrypt.hash(process.env.ADMIN_PASSWORD ?? "ChangeMe123!", 12);
-
-  await prisma.adminUser.upsert({
-    where: { email: process.env.ADMIN_EMAIL ?? "admin@example.com" },
-    update: {
-      name: "TradeArena Admin",
-      passwordHash,
-    },
-    create: {
-      email: process.env.ADMIN_EMAIL ?? "admin@example.com",
-      name: "TradeArena Admin",
-      passwordHash,
-    },
-  });
-
   await prisma.appSetting.upsert({
     where: { key: "default_schedule" },
     update: { value: { updateTimes: ["09:00", "21:00"], timezone: "Asia/Ulaanbaatar" } },

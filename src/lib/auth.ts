@@ -1,117 +1,277 @@
-import bcrypt from "bcryptjs";
-import { SignJWT, jwtVerify } from "jose";
-import { cookies } from "next/headers";
+import type { AdminUser } from "@prisma/client";
+import { auth, currentUser } from "@clerk/nextjs/server";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
+import {
+  ADMIN_ACCESS_AUDIT_ROUTE,
+  buildAuthRedirectPath,
+  getPublicMetadataRole,
+  getRequestIpAddress,
+  hasAdminRole,
+} from "@/lib/admin-access";
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
 
-const SESSION_COOKIE = "ftmo_admin_session";
-const SESSION_DURATION_DAYS = 14;
+const CLERK_MANAGED_PASSWORD_HASH = "CLERK_MANAGED_ACCOUNT";
 
-function getSessionSecret() {
-  return new TextEncoder().encode(env.ADMIN_SESSION_SECRET);
+type AdminAccessReason =
+  | "ip_not_allowed"
+  | "missing_email"
+  | "mfa_required"
+  | "rate_limited"
+  | "unauthenticated"
+  | "unauthorized";
+
+type AdminRequestContext = {
+  ipAddress: string | null;
+  path: string;
+  userAgent: string | null;
+};
+
+export type AdminAccessState =
+  | {
+      adminUser: AdminUser;
+      allowed: true;
+      role: string;
+    }
+  | {
+      allowed: false;
+      reason: AdminAccessReason;
+      returnPath: string;
+      status: 401 | 403 | 429;
+    };
+
+function getAdminIpAllowlist() {
+  return env.ADMIN_IP_ALLOWLIST;
 }
 
-async function sha256(input: string) {
-  const buffer = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(input));
-  return Array.from(new Uint8Array(buffer))
-    .map((value) => value.toString(16).padStart(2, "0"))
-    .join("");
-}
+function isAdminIpAllowed(ipAddress: string | null) {
+  const allowlist = getAdminIpAllowlist();
 
-export async function hashPassword(password: string) {
-  return bcrypt.hash(password, 12);
-}
-
-export async function verifyPassword(password: string, hash: string) {
-  return bcrypt.compare(password, hash);
-}
-
-export async function createAdminSession(userId: string) {
-  const sessionId = crypto.randomUUID();
-  const token = await new SignJWT({ sessionId, userId })
-    .setProtectedHeader({ alg: "HS256" })
-    .setIssuedAt()
-    .setExpirationTime(`${SESSION_DURATION_DAYS}d`)
-    .sign(getSessionSecret());
-
-  const tokenHash = await sha256(token);
-  const expiresAt = new Date(Date.now() + SESSION_DURATION_DAYS * 24 * 60 * 60 * 1000);
-
-  await db.adminSession.create({
-    data: {
-      userId,
-      tokenHash,
-      expiresAt,
-    },
-  });
-
-  const cookieStore = await cookies();
-  cookieStore.set(SESSION_COOKIE, token, {
-    httpOnly: true,
-    secure: env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-    expires: expiresAt,
-  });
-}
-
-export async function destroyAdminSession() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get(SESSION_COOKIE)?.value;
-
-  if (token) {
-    const tokenHash = await sha256(token);
-    await db.adminSession.deleteMany({
-      where: { tokenHash },
-    });
+  if (!allowlist.length) {
+    return true;
   }
 
-  cookieStore.delete(SESSION_COOKIE);
+  if (!ipAddress) {
+    return false;
+  }
+
+  return allowlist.includes(ipAddress);
 }
 
-export async function getAdminSession() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get(SESSION_COOKIE)?.value;
+async function getAdminRequestContext(pathOverride?: string, requestHeaders?: Headers): Promise<AdminRequestContext> {
+  const headerStore = requestHeaders ?? (await headers());
 
-  if (!token) {
-    return null;
+  return {
+    ipAddress: getRequestIpAddress(headerStore),
+    path: pathOverride || headerStore.get("x-ftmo-pathname") || "/admin",
+    userAgent: headerStore.get("user-agent"),
+  };
+}
+
+async function countFailedAdminAttempts(ipAddress: string | null) {
+  if (!ipAddress) {
+    return 0;
+  }
+
+  const windowStart = new Date(Date.now() - 60 * 60 * 1000);
+
+  return db.submissionAttempt.count({
+    where: {
+      route: ADMIN_ACCESS_AUDIT_ROUTE,
+      ipAddress,
+      createdAt: {
+        gte: windowStart,
+      },
+    },
+  });
+}
+
+async function recordFailedAdminAccess(input: {
+  email?: string | null;
+  ipAddress: string | null;
+  path: string;
+  reason: AdminAccessReason;
+  role?: string | null;
+  status: 401 | 403 | 429;
+  userAgent?: string | null;
+  userId?: string | null;
+}) {
+  console.warn("[admin-access]", {
+    email: input.email ?? null,
+    ipAddress: input.ipAddress,
+    path: input.path,
+    reason: input.reason,
+    role: input.role ?? null,
+    status: input.status,
+    userId: input.userId ?? null,
+  });
+
+  if (!input.ipAddress) {
+    return;
   }
 
   try {
-    const verified = await jwtVerify(token, getSessionSecret());
-    const tokenHash = await sha256(token);
-
-    const session = await db.adminSession.findUnique({
-      where: { tokenHash },
-      include: { user: true },
+    await db.submissionAttempt.create({
+      data: {
+        route: ADMIN_ACCESS_AUDIT_ROUTE,
+        ipAddress: input.ipAddress,
+        metadata: {
+          email: input.email ?? null,
+          path: input.path,
+          reason: input.reason,
+          role: input.role ?? null,
+          status: input.status,
+          userAgent: input.userAgent ?? null,
+          userId: input.userId ?? null,
+        },
+      },
     });
-
-    if (!session || session.expiresAt < new Date()) {
-      return null;
-    }
-
-    await db.adminSession.update({
-      where: { id: session.id },
-      data: { lastSeenAt: new Date() },
-    });
-
-    return {
-      sessionId: verified.payload.sessionId as string,
-      user: session.user,
-    };
-  } catch {
-    return null;
+  } catch (error) {
+    console.error("[admin-access-log-failed]", error);
   }
 }
 
-export async function requireAdminUser() {
-  const session = await getAdminSession();
+async function createDeniedAdminAccessState(input: {
+  context: AdminRequestContext;
+  email?: string | null;
+  reason: Exclude<AdminAccessReason, "rate_limited">;
+  role?: string | null;
+  status: 401 | 403;
+  userId?: string | null;
+}): Promise<AdminAccessState> {
+  const failedAttemptCount = (await countFailedAdminAttempts(input.context.ipAddress)) + 1;
+  const isRateLimited = failedAttemptCount > env.ADMIN_ACCESS_RATE_LIMIT_PER_HOUR;
+  const reason = isRateLimited ? "rate_limited" : input.reason;
+  const status = isRateLimited ? 429 : input.status;
 
-  if (!session) {
-    redirect("/admin/login");
+  await recordFailedAdminAccess({
+    email: input.email,
+    ipAddress: input.context.ipAddress,
+    path: input.context.path,
+    reason,
+    role: input.role,
+    status,
+    userAgent: input.context.userAgent,
+    userId: input.userId,
+  });
+
+  return {
+    allowed: false,
+    reason,
+    returnPath: input.context.path,
+    status,
+  };
+}
+
+async function syncAdminProfile(user: Awaited<ReturnType<typeof currentUser>>) {
+  const email = user?.primaryEmailAddress?.emailAddress?.trim().toLowerCase() ?? null;
+
+  if (!email) {
+    return null;
   }
 
-  return session.user;
+  const name = [user?.firstName, user?.lastName].filter(Boolean).join(" ") || user?.username || email;
+  const now = new Date();
+
+  return db.adminUser.upsert({
+    where: { email },
+    update: {
+      lastLoginAt: now,
+      name,
+    },
+    create: {
+      email,
+      lastLoginAt: now,
+      name,
+      passwordHash: CLERK_MANAGED_PASSWORD_HASH,
+    },
+  });
+}
+
+export async function getAdminAccessState(options?: {
+  requestHeaders?: Headers;
+  requestPath?: string;
+}): Promise<AdminAccessState> {
+  const context = await getAdminRequestContext(options?.requestPath, options?.requestHeaders);
+
+  if (!isAdminIpAllowed(context.ipAddress)) {
+    return createDeniedAdminAccessState({
+      context,
+      reason: "ip_not_allowed",
+      status: 403,
+    });
+  }
+
+  const { userId } = await auth();
+
+  if (!userId) {
+    return createDeniedAdminAccessState({
+      context,
+      reason: "unauthenticated",
+      status: 401,
+    });
+  }
+
+  const user = await currentUser();
+  const email = user?.primaryEmailAddress?.emailAddress ?? null;
+  const role = getPublicMetadataRole(user?.publicMetadata);
+
+  if (!user || !hasAdminRole(user.publicMetadata)) {
+    return createDeniedAdminAccessState({
+      context,
+      email,
+      reason: "unauthorized",
+      role,
+      status: 403,
+      userId,
+    });
+  }
+
+  if (env.ADMIN_REQUIRE_MFA && !user.twoFactorEnabled) {
+    return createDeniedAdminAccessState({
+      context,
+      email,
+      reason: "mfa_required",
+      role,
+      status: 403,
+      userId,
+    });
+  }
+
+  const adminUser = await syncAdminProfile(user);
+
+  if (!adminUser) {
+    return createDeniedAdminAccessState({
+      context,
+      email,
+      reason: "missing_email",
+      role,
+      status: 403,
+      userId,
+    });
+  }
+
+  return {
+    adminUser,
+    allowed: true,
+    role: role ?? "admin",
+  };
+}
+
+export async function requireAdminUser(options?: { requestPath?: string }) {
+  const access = await getAdminAccessState({
+    requestPath: options?.requestPath,
+  });
+
+  if (access.allowed) {
+    return access.adminUser;
+  }
+
+  if (access.reason === "unauthenticated") {
+    redirect(buildAuthRedirectPath(access.returnPath));
+  }
+
+  redirect("/");
 }

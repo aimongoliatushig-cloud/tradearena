@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
+import { requireAdminUser } from "@/lib/auth";
 import { getUserFacingErrorMessage } from "@/lib/error-utils";
 import { blogCategorySchema, blogPopupSchema, blogPostSchema } from "@/lib/validators";
 import { removeStoredBlogImage, saveBlogImageUpload } from "@/server/services/blog-media-service";
@@ -40,8 +41,13 @@ function revalidateBlogPaths(slug?: string) {
   }
 }
 
+async function ensureAdminAccess(requestPath: string) {
+  await requireAdminUser({ requestPath });
+}
+
 export async function saveBlogCategoryAction(formData: FormData) {
   const returnPath = String(formData.get("returnPath") || "/admin/blog/categories");
+  await ensureAdminAccess(returnPath);
 
   try {
     const parsed = blogCategorySchema.parse({
@@ -62,6 +68,7 @@ export async function saveBlogCategoryAction(formData: FormData) {
 
 export async function deleteBlogCategoryAction(formData: FormData) {
   const returnPath = String(formData.get("returnPath") || "/admin/blog/categories");
+  await ensureAdminAccess(returnPath);
 
   try {
     await deleteBlogCategory(String(formData.get("id")));
@@ -78,6 +85,7 @@ export async function saveBlogPopupAction(formData: FormData) {
   const existingImageUrl = String(formData.get("existingImageUrl") || "");
   const upload = formData.get("imageFile");
   let imageUrl = existingImageUrl || undefined;
+  await ensureAdminAccess(returnPath);
 
   try {
     if (upload instanceof File && upload.size > 0) {
@@ -117,6 +125,7 @@ export async function saveBlogPopupAction(formData: FormData) {
 export async function deleteBlogPopupAction(formData: FormData) {
   const returnPath = String(formData.get("returnPath") || "/admin/blog/popups");
   const imageUrl = String(formData.get("imageUrl") || "");
+  await ensureAdminAccess(returnPath);
 
   try {
     await deleteBlogPopup(String(formData.get("id")));
@@ -134,6 +143,7 @@ export async function saveBlogPostAction(formData: FormData) {
   const existingImageUrl = String(formData.get("existingImageUrl") || "");
   const upload = formData.get("coverImageFile");
   let imageUrl = existingImageUrl || undefined;
+  await ensureAdminAccess(returnPath);
 
   try {
     if (upload instanceof File && upload.size > 0) {
@@ -172,6 +182,7 @@ export async function saveBlogPostAction(formData: FormData) {
 export async function deleteBlogPostAction(formData: FormData) {
   const returnPath = String(formData.get("returnPath") || "/admin/blog/posts");
   const imageUrl = String(formData.get("coverImageUrl") || "");
+  await ensureAdminAccess(returnPath);
 
   try {
     await deleteBlogPost(String(formData.get("id")));

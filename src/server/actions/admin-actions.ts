@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
-import { createAdminSession, destroyAdminSession, requireAdminUser, verifyPassword } from "@/lib/auth";
+import { requireAdminUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { getUserFacingErrorMessage } from "@/lib/error-utils";
 import {
@@ -16,7 +16,6 @@ import {
   resourceFormSchema,
 } from "@/lib/package-validators";
 import {
-  adminLoginSchema,
   applicantCommentSchema,
   applicantStatusSchema,
   applicantTrashSchema,
@@ -26,7 +25,6 @@ import {
   traderFormSchema,
   traderViolationSchema,
 } from "@/lib/validators";
-import type { ActionState } from "@/server/actions/action-state";
 import { addApplicantComment, moveApplicantToTrash, restoreApplicantFromTrash, updateApplicantStatus } from "@/server/services/applicant-service";
 import { upsertCourse } from "@/server/services/course-service";
 import { confirmPaymentAndEnroll, markPaymentAsUnpaid, mergePackageRooms, moveEnrollmentToRoom } from "@/server/services/enrollment-service";
@@ -72,48 +70,14 @@ async function getPublicRoomPaths(roomId: string) {
   return room ? [`/rooms/${roomId}`, `/rooms/${room.slug}`] : [`/rooms/${roomId}`];
 }
 
-export async function loginAdminAction(_: ActionState, formData: FormData): Promise<ActionState> {
-  const parsed = adminLoginSchema.safeParse({
-    email: formData.get("email"),
-    password: formData.get("password"),
-  });
-
-  if (!parsed.success) {
-    return {
-      status: "error",
-      message: "Invalid email or password.",
-      fieldErrors: parsed.error.flatten().fieldErrors,
-    };
-  }
-
-  const admin = await db.adminUser.findUnique({
-    where: { email: parsed.data.email },
-  });
-
-  if (!admin || !(await verifyPassword(parsed.data.password, admin.passwordHash))) {
-    return {
-      status: "error",
-      message: "Invalid email or password.",
-    };
-  }
-
-  await db.adminUser.update({
-    where: { id: admin.id },
-    data: { lastLoginAt: new Date() },
-  });
-
-  await createAdminSession(admin.id);
-  redirect("/admin");
-}
-
-export async function logoutAdminAction() {
-  await destroyAdminSession();
-  redirect("/admin/login");
+async function ensureAdminAccess(requestPath: string) {
+  return requireAdminUser({ requestPath });
 }
 
 export async function saveRoomFormAction(formData: FormData) {
   const returnPath = String(formData.get("returnPath") || "/admin/rooms");
   let successPath = returnPath;
+  await ensureAdminAccess(returnPath);
 
   try {
     const parsed = roomFormSchema.parse({
@@ -147,6 +111,7 @@ export async function saveRoomFormAction(formData: FormData) {
 export async function saveTraderFormAction(formData: FormData) {
   const roomId = String(formData.get("roomId"));
   const returnPath = String(formData.get("returnPath") || `/admin/rooms/${roomId}`);
+  await ensureAdminAccess(returnPath);
 
   try {
     const parsed = traderFormSchema.parse({
@@ -171,6 +136,7 @@ export async function deleteTraderFormAction(formData: FormData) {
   const traderId = String(formData.get("traderId"));
   const roomId = String(formData.get("roomId"));
   const returnPath = String(formData.get("returnPath") || `/admin/rooms/${roomId}`);
+  await ensureAdminAccess(returnPath);
 
   await deleteTrader(traderId);
 
@@ -181,6 +147,7 @@ export async function deleteTraderFormAction(formData: FormData) {
 export async function setTraderViolationAction(formData: FormData) {
   const roomId = String(formData.get("roomId"));
   const returnPath = String(formData.get("returnPath") || `/admin/rooms/${roomId}`);
+  await ensureAdminAccess(returnPath);
 
   try {
     const parsed = traderViolationSchema.parse({
@@ -202,6 +169,7 @@ export async function setTraderViolationAction(formData: FormData) {
 export async function setTraderCompletionRecordedAction(formData: FormData) {
   const roomId = String(formData.get("roomId"));
   const returnPath = String(formData.get("returnPath") || `/admin/rooms/${roomId}`);
+  await ensureAdminAccess(returnPath);
 
   try {
     const parsed = traderCompletionRecordSchema.parse({
@@ -223,6 +191,7 @@ export async function refreshTraderAction(formData: FormData) {
   const traderId = String(formData.get("traderId"));
   const roomId = String(formData.get("roomId"));
   const returnPath = String(formData.get("returnPath") || `/admin/rooms/${roomId}`);
+  await ensureAdminAccess(returnPath);
 
   try {
     await refreshTraderStats(traderId, FetchSource.MANUAL);
@@ -238,6 +207,7 @@ export async function refreshTraderAction(formData: FormData) {
 export async function refreshRoomAction(formData: FormData) {
   const roomId = String(formData.get("roomId"));
   const returnPath = String(formData.get("returnPath") || `/admin/rooms/${roomId}`);
+  await ensureAdminAccess(returnPath);
 
   try {
     await refreshRoomStats(roomId, FetchSource.MANUAL);
@@ -252,6 +222,7 @@ export async function refreshRoomAction(formData: FormData) {
 
 export async function updateApplicantStatusAction(formData: FormData) {
   const returnPath = String(formData.get("returnPath") || "/admin/applicants");
+  await ensureAdminAccess(returnPath);
 
   try {
     const parsed = applicantStatusSchema.parse({
@@ -271,7 +242,7 @@ export async function updateApplicantStatusAction(formData: FormData) {
 
 export async function addApplicantCommentAction(formData: FormData) {
   const returnPath = String(formData.get("returnPath") || "/admin/applicants");
-  const admin = await requireAdminUser();
+  const admin = await ensureAdminAccess(returnPath);
 
   try {
     const parsed = applicantCommentSchema.parse({
@@ -294,6 +265,7 @@ export async function addApplicantCommentAction(formData: FormData) {
 
 export async function moveApplicantToTrashAction(formData: FormData) {
   const returnPath = String(formData.get("returnPath") || "/admin/applicants");
+  await ensureAdminAccess(returnPath);
 
   try {
     const parsed = applicantTrashSchema.parse({
@@ -311,6 +283,7 @@ export async function moveApplicantToTrashAction(formData: FormData) {
 
 export async function restoreApplicantFromTrashAction(formData: FormData) {
   const returnPath = String(formData.get("returnPath") || "/admin/applicants?view=trash");
+  await ensureAdminAccess(returnPath);
 
   try {
     const parsed = applicantTrashSchema.parse({
@@ -328,6 +301,7 @@ export async function restoreApplicantFromTrashAction(formData: FormData) {
 
 export async function saveSettingsAction(formData: FormData) {
   const returnPath = String(formData.get("returnPath") || "/admin/settings");
+  await ensureAdminAccess(returnPath);
 
   try {
     const parsed = settingsSchema.parse({
@@ -356,6 +330,7 @@ export async function saveSettingsAction(formData: FormData) {
 
 export async function savePackageTierAction(formData: FormData) {
   const returnPath = String(formData.get("returnPath") || "/admin/packages");
+  await ensureAdminAccess(returnPath);
 
   try {
     const parsed = packageTierFormSchema.parse({
@@ -386,6 +361,7 @@ export async function savePackageTierAction(formData: FormData) {
 
 export async function saveCourseAction(formData: FormData) {
   const returnPath = String(formData.get("returnPath") || "/admin/courses");
+  await ensureAdminAccess(returnPath);
 
   try {
     const parsed = courseFormSchema.parse({
@@ -411,6 +387,7 @@ export async function saveCourseAction(formData: FormData) {
 
 export async function saveResourceAction(formData: FormData) {
   const returnPath = String(formData.get("returnPath") || "/admin/resources");
+  await ensureAdminAccess(returnPath);
 
   try {
     const parsed = resourceFormSchema.parse({
@@ -435,6 +412,7 @@ export async function saveResourceAction(formData: FormData) {
 
 export async function confirmManualPaymentAction(formData: FormData) {
   const returnPath = String(formData.get("returnPath") || "/admin/enrollments");
+  await ensureAdminAccess(returnPath);
 
   try {
     const parsed = paymentConfirmationSchema.parse({
@@ -455,6 +433,7 @@ export async function confirmManualPaymentAction(formData: FormData) {
 
 export async function markPaymentAsUnpaidAction(formData: FormData) {
   const returnPath = String(formData.get("returnPath") || "/admin/enrollments");
+  await ensureAdminAccess(returnPath);
 
   try {
     const parsed = paymentConfirmationSchema.parse({
@@ -475,6 +454,7 @@ export async function markPaymentAsUnpaidAction(formData: FormData) {
 
 export async function moveEnrollmentAction(formData: FormData) {
   const returnPath = String(formData.get("returnPath") || "/admin/rooms");
+  await ensureAdminAccess(returnPath);
 
   try {
     const parsed = enrollmentMoveSchema.parse({
@@ -502,6 +482,7 @@ const roomMergeSchema = z.object({
 
 export async function mergePackageRoomsAction(formData: FormData) {
   const returnPath = String(formData.get("returnPath") || "/admin/rooms");
+  await ensureAdminAccess(returnPath);
 
   try {
     const parsed = roomMergeSchema.parse({

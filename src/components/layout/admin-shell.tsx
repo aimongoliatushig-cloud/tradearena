@@ -4,7 +4,6 @@ import type { ReactNode } from "react";
 import type { AdminUser } from "@prisma/client";
 
 import { Button } from "@/components/ui/button";
-import { logoutAdminAction } from "@/server/actions/admin-actions";
 
 const links = [
   { href: "/admin", label: "Хяналтын самбар", icon: LayoutDashboard },
@@ -44,7 +43,7 @@ export function AdminShell({ user, children }: { user: AdminUser; children: Reac
           ))}
         </nav>
 
-        <form action={logoutAdminAction} className="mt-8">
+        <form action="/sign-out" method="post" className="mt-8">
           <Button type="submit" variant="outline" className="w-full justify-start border-white/8 bg-white/[0.02]">
             <LogOut className="size-4" />
             Гарах

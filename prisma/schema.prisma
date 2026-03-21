@@ -147,20 +147,7 @@ model AdminUser {
   lastLoginAt  DateTime?
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
-  sessions     AdminSession[]
   applicantComments ApplicantComment[]
-}
-
-model AdminSession {
-  id         String    @id @default(cuid())
-  userId     String
-  tokenHash  String    @unique
-  expiresAt  DateTime
-  createdAt  DateTime  @default(now())
-  lastSeenAt DateTime?
-  user       AdminUser @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId, expiresAt])
 }
 
 model ChallengeRoom {

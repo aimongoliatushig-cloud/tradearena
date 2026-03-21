@@ -80,12 +80,7 @@ export function PublicShell({ children }: { children: React.ReactNode }) {
               )
             ))}
 
-            <Link
-              href="/admin/login"
-              className="inline-flex h-10 items-center justify-center rounded-full border border-white/8 bg-[#10161d] px-4 text-sm font-semibold tracking-[-0.01em] text-white transition hover:bg-white/[0.05]"
-            >
-              Админ
-            </Link>
+
           </nav>
         </div>
       </header>
