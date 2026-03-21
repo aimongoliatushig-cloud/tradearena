@@ -1,12 +1,25 @@
 import Image from "next/image";
 import Link from "next/link";
-import { BarChart3, BookOpen, History, LayoutGrid, Newspaper, Package, UserRound } from "lucide-react";
+import { BarChart3, BookOpen, ChevronDown, History, LayoutGrid, Newspaper, Package, UserRound } from "lucide-react";
+
+const programSubmenuItems = [
+  {
+    href: "/program/ftmo",
+    label: "FTMO хөтөлбөр",
+    description: "FTMO-ийн албан ёсны тойм, шалгуур, өсөлтийн төлөвлөгөө",
+  },
+  {
+    href: "/program/10-challenge",
+    label: "10тын чэллэнж",
+    description: "Манай дүрэм, багц, давуу тал, оролцох бүтэц",
+  },
+] as const;
 
 const navItems = [
   { href: "/", label: "Нүүр", icon: LayoutGrid },
   { href: "/packages", label: "Багцууд", icon: Package },
   { href: "/dashboard", label: "Самбар", icon: UserRound },
-  { href: "/program", label: "Хөтөлбөр", icon: BookOpen },
+  { href: "/program", label: "Хөтөлбөр", icon: BookOpen, children: programSubmenuItems },
   { href: "/blog", label: "Блог", icon: Newspaper },
   { href: "/rooms", label: "Өрөөнүүд", icon: BarChart3 },
   { href: "/history", label: "Түүх", icon: History },
@@ -33,14 +46,37 @@ export function PublicShell({ children }: { children: React.ReactNode }) {
 
           <nav className="flex flex-wrap items-center gap-2 rounded-full border border-white/8 bg-[rgba(18,24,32,0.9)] p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
             {navItems.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="inline-flex h-10 items-center justify-center gap-2 rounded-full px-4 text-sm font-semibold tracking-[-0.01em] text-white/62 transition hover:bg-white/[0.05] hover:text-white"
-              >
-                <item.icon className="size-4" />
-                {item.label}
-              </Link>
+              item.children ? (
+                <details key={item.href} className="group relative">
+                  <summary className="inline-flex h-10 cursor-pointer list-none items-center justify-center gap-2 rounded-full px-4 text-sm font-semibold tracking-[-0.01em] text-white/62 transition hover:bg-white/[0.05] hover:text-white [&::-webkit-details-marker]:hidden">
+                    <item.icon className="size-4" />
+                    {item.label}
+                    <ChevronDown className="size-4 text-white/38 transition group-hover:text-white/70" />
+                  </summary>
+
+                  <div className="mt-2 w-full min-w-[260px] rounded-[1.4rem] border border-white/10 bg-[linear-gradient(180deg,rgba(18,24,32,0.98),rgba(11,16,22,0.94))] p-2 shadow-[0_24px_60px_rgba(0,0,0,0.34)] lg:absolute lg:left-0 lg:top-full lg:mt-3">
+                    {item.children.map((child) => (
+                      <Link
+                        key={child.href}
+                        href={child.href}
+                        className="block rounded-[1rem] px-4 py-3 transition hover:bg-white/[0.05]"
+                      >
+                        <div className="text-sm font-semibold text-white">{child.label}</div>
+                        <div className="mt-1 text-xs leading-5 text-white/48">{child.description}</div>
+                      </Link>
+                    ))}
+                  </div>
+                </details>
+              ) : (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className="inline-flex h-10 items-center justify-center gap-2 rounded-full px-4 text-sm font-semibold tracking-[-0.01em] text-white/62 transition hover:bg-white/[0.05] hover:text-white"
+                >
+                  <item.icon className="size-4" />
+                  {item.label}
+                </Link>
+              )
             ))}
 
             <Link
