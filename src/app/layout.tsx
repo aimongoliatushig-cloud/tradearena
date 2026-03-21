@@ -5,7 +5,6 @@ import { Manrope } from "next/font/google";
 import { Toaster } from "sonner";
 
 import { ClerkHeaderActions } from "@/components/shared/clerk-auth-controls";
-import { bootScheduler } from "@/server/services/scheduler-bootstrap";
 
 import "./globals.css";
 
@@ -27,7 +26,6 @@ export default async function RootLayout({
 }>) {
   const { userId } = await auth();
   const viewer = userId ? await currentUser() : null;
-  bootScheduler();
 
   return (
     <html lang="mn" className={`${manrope.variable} dark`}>

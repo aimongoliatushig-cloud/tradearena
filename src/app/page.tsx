@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ArrowRight, BookOpen, Headphones, Sparkles, Trophy, TrendingUp, Users, Wrench } from "lucide-react";
 
 import { PublicShell } from "@/components/layout/public-shell";
+import { HomeHeroPrimary } from "@/components/shared/home-hero-primary";
 import { LatestBlogCarousel } from "@/components/shared/latest-blog-carousel";
 import { PricingComparisonSection } from "@/components/shared/PricingComparisonSection";
 import { RoomCard } from "@/components/shared/room-card";
@@ -13,17 +14,9 @@ import { buildProgressValue, formatPercent } from "@/lib/format";
 import { accountSizeLabels, courseAccessLevelLabels } from "@/lib/labels";
 import { sortTradersForLeaderboard } from "@/lib/leaderboard";
 import { formatUsd } from "@/lib/pricing";
-import { cn } from "@/lib/utils";
 import { listLatestPublishedBlogPosts } from "@/server/services/blog-service";
 import { listActivePackageTiers } from "@/server/services/package-service";
 import { getPublicHomepageData } from "@/server/services/room-service";
-
-const heroSupportPoints = [
-  "10K-200K шаталсан багцуудтай, алхам бүр дээр илүү их үнэ цэн нэмэгдэнэ.",
-  "Төлбөр баталгаажмагц сургалт, стратеги, индикатор, хэрэгсэл автоматаар нээгдэнэ.",
-  "Өрөө бүр 10 гишүүнтэй, дүүрвэл дараагийн өрөө автоматаар үүснэ.",
-  "FTMO лидер самбар, өрөөний түүх, гүйцэтгэлийн хяналт хэвээр үлдэнэ.",
-] as const;
 
 const memberValueCards = [
   {
@@ -44,7 +37,7 @@ const memberValueCards = [
 ] as const;
 
 export default async function HomePage() {
-  const [{ activeRooms, historicalRooms, totals }, latestPosts, packages] = await Promise.all([
+  const [{ activeRooms, historicalRooms }, latestPosts, packages] = await Promise.all([
     getPublicHomepageData(),
     listLatestPublishedBlogPosts(),
     listActivePackageTiers(),
@@ -77,63 +70,7 @@ export default async function HomePage() {
           <div className="pointer-events-none absolute -right-20 top-0 h-56 w-56 rounded-full bg-[#18c7a2]/16 blur-3xl" />
           <div className="pointer-events-none absolute -left-10 bottom-16 h-44 w-44 rounded-full bg-[#84ead0]/8 blur-3xl" />
 
-          <div className="relative space-y-8">
-            <div className="ftmo-kicker border-[#5cd9bd]/16 bg-[#18c7a2]/10 text-[#d6fff4] shadow-[0_10px_30px_rgba(24,199,162,0.12)]">
-              TradeArena.pro багц платформ
-            </div>
-
-            <div className="space-y-4">
-              <h1 className="max-w-4xl text-5xl font-semibold leading-[0.96] tracking-[-0.07em] text-white sm:text-[4.25rem]">
-                Багц, сургалт, өрөө, хяналтын самбарыг нэг урсгалд нэгтгэсэн арилжааны платформ.
-              </h1>
-              <p className="max-w-3xl text-sm leading-7 text-white/66 sm:text-base">
-                Хэрэглэгч багцаа сонгоно, төлбөрийн мэдээллээ илгээнэ, баталгаажмагц өрөөний хуваарилалт, сургалтын эрх,
-                стратегийн нээлт, хэрэгсэл, коучинг бүгд автоматаар нээгдэнэ.
-              </p>
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-2">
-              {heroSupportPoints.map((point) => (
-                <div key={point} className="rounded-[1.4rem] border border-white/8 bg-white/[0.04] px-4 py-4 text-sm leading-6 text-white/72">
-                  {point}
-                </div>
-              ))}
-            </div>
-
-            <div className="flex flex-wrap gap-3">
-              <Link
-                href="/packages"
-                className={cn(
-                  buttonVariants({ size: "lg" }),
-                  "bg-[linear-gradient(135deg,#39d3b3_0%,#18c7a2_58%,#10927c_100%)] text-[#071210] shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_20px_38px_rgba(24,199,162,0.22)] hover:bg-[linear-gradient(135deg,#4fdbc0_0%,#20cfab_58%,#129b84_100%)]",
-                )}
-              >
-                Багц сонгох
-                <ArrowRight className="size-4" />
-              </Link>
-              <Link href="/dashboard" className={buttonVariants({ variant: "outline", size: "lg" })}>
-                Хяналтын самбар
-              </Link>
-              <Link href="/rooms" className={buttonVariants({ variant: "ghost", size: "lg" })}>
-                Өрөөнүүд
-              </Link>
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-3">
-              <div className="rounded-[1.5rem] border border-white/10 bg-black/16 px-4 py-4">
-                <div className="text-xs uppercase tracking-[0.2em] text-white/45">Идэвхтэй өрөө</div>
-                <div className="mt-2 text-3xl font-semibold tracking-[-0.04em] text-white">{activeRooms.length}</div>
-              </div>
-              <div className="rounded-[1.5rem] border border-white/10 bg-black/16 px-4 py-4">
-                <div className="text-xs uppercase tracking-[0.2em] text-white/45">Трэйдер</div>
-                <div className="mt-2 text-3xl font-semibold tracking-[-0.04em] text-white">{totals.traderCount}</div>
-              </div>
-              <div className="rounded-[1.5rem] border border-white/10 bg-black/16 px-4 py-4">
-                <div className="text-xs uppercase tracking-[0.2em] text-white/45">Багцын шатлал</div>
-                <div className="mt-2 text-3xl font-semibold tracking-[-0.04em] text-white">{packages.length}</div>
-              </div>
-            </div>
-          </div>
+          <HomeHeroPrimary />
         </div>
 
         <div className="glass-panel h-full border-white/8 bg-[linear-gradient(180deg,rgba(18,24,32,0.98),rgba(13,18,24,0.94))] p-6 shadow-[0_28px_80px_rgba(0,0,0,0.4)] sm:p-8">

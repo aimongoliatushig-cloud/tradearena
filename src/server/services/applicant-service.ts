@@ -18,18 +18,35 @@ const ACTIVE_SIGNUP_STATUSES = [
   ApplicantStatus.INVITATION_SENT,
 ] as const;
 
-export async function listApplicants(accountSize?: AccountSize) {
+export type ApplicantListView = "active" | "trash";
+
+export async function listApplicants(accountSize?: AccountSize, view: ApplicantListView = "active") {
   return db.applicant.findMany({
-    where: accountSize ? { desiredAccountSize: accountSize } : undefined,
+    where: {
+      ...(accountSize ? { desiredAccountSize: accountSize } : {}),
+      trashedAt: view === "trash" ? { not: null } : null,
+    },
     include: {
       room: true,
+      comments: {
+        include: {
+          adminUser: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+        },
+        orderBy: [{ createdAt: "desc" }],
+      },
     },
-    orderBy: [{ createdAt: "desc" }],
+    orderBy: view === "trash" ? [{ trashedAt: "desc" }, { createdAt: "desc" }] : [{ createdAt: "desc" }],
   });
 }
 
 export async function getApplicantBuckets() {
-  const applicants = await listApplicants();
+  const applicants = await listApplicants(undefined, "active");
 
   return ACCOUNT_SIZE_OPTIONS.map((size) => {
     const sizeApplicants = applicants.filter((applicant) => applicant.desiredAccountSize === size);
@@ -104,6 +121,7 @@ export async function createApplicant(input: {
               status: {
                 not: ApplicantStatus.REJECTED,
               },
+              trashedAt: null,
             },
             select: { id: true },
           },
@@ -125,6 +143,7 @@ export async function createApplicant(input: {
           status: {
             in: [...ACTIVE_SIGNUP_STATUSES],
           },
+          trashedAt: null,
         },
         include: {
           room: {
@@ -202,6 +221,47 @@ export async function updateApplicantStatus(input: {
       ...(input.roomId !== undefined ? { roomId: input.roomId || null } : {}),
       invitationSentAt: input.status === ApplicantStatus.INVITATION_SENT ? new Date() : undefined,
       joinedAt: input.status === ApplicantStatus.JOINED ? new Date() : undefined,
+    },
+  });
+}
+
+export async function addApplicantComment(input: {
+  applicantId: string;
+  adminUserId: string;
+  body: string;
+}) {
+  const applicant = await db.applicant.findUnique({
+    where: { id: input.applicantId },
+    select: { id: true },
+  });
+
+  if (!applicant) {
+    throw new Error("Applicant not found.");
+  }
+
+  return db.applicantComment.create({
+    data: {
+      applicantId: input.applicantId,
+      adminUserId: input.adminUserId,
+      body: input.body,
+    },
+  });
+}
+
+export async function moveApplicantToTrash(input: { applicantId: string }) {
+  return db.applicant.update({
+    where: { id: input.applicantId },
+    data: {
+      trashedAt: new Date(),
+    },
+  });
+}
+
+export async function restoreApplicantFromTrash(input: { applicantId: string }) {
+  return db.applicant.update({
+    where: { id: input.applicantId },
+    data: {
+      trashedAt: null,
     },
   });
 }

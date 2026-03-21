@@ -9,7 +9,7 @@ import { FlashMessage } from "@/components/shared/flash-message";
 import { buttonVariants } from "@/lib/button-variants";
 import { saveCourseProgressAction } from "@/server/actions/member-actions";
 import { getAccessibleCourseBySlug } from "@/server/services/course-service";
-import { getCurrentEnrollmentForUser } from "@/server/services/enrollment-service";
+import { getCurrentEnrollmentForUser, hasConfirmedPaymentAccess } from "@/server/services/enrollment-service";
 
 function isIframeVideo(url: string) {
   return /vimeo\.com|youtube\.com|youtu\.be|player\./i.test(url);
@@ -38,6 +38,13 @@ export default async function DashboardCourseDetailPage({
 
   if (!enrollment) {
     redirect("/dashboard");
+  }
+
+  if (!hasConfirmedPaymentAccess(enrollment)) {
+    const params = new URLSearchParams({
+      error: "Төлбөр баталгаажсаны дараа сургалт нээгдэнэ.",
+    });
+    redirect(`/dashboard?${params.toString()}`);
   }
 
   const course = await getAccessibleCourseBySlug({

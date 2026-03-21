@@ -39,11 +39,10 @@ export default async function DashboardPage({
       <PublicShell>
         <section className="mx-auto max-w-4xl px-4 py-10 sm:px-6 lg:px-8">
           <div className="rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(18,24,32,0.96),rgba(11,16,22,0.92))] p-8 shadow-[0_24px_60px_rgba(0,0,0,0.28)]">
-            <div className="ftmo-kicker">Хяналтын самбар</div>
-            <h1 className="mt-4 text-4xl font-semibold tracking-[-0.05em] text-white">Нэвтэрсний дараа самбар нээгдэнэ</h1>
+            <div className="ftmo-kicker">Member Dashboard</div>
+            <h1 className="mt-4 text-4xl font-semibold tracking-[-0.05em] text-white">Sign in to open your member workspace</h1>
             <p className="mt-3 max-w-2xl text-sm leading-7 text-white/60">
-              Багцын төлөв, сургалт, стратеги, хэрэгслүүд болон коучингийн мэдээллээ харахын тулд эхлээд
-              нэвтэрнэ үү.
+              Your package status, courses, tools, indicators, and coaching access appear here after you sign in.
             </p>
             <ClerkPromptActions
               containerClassName="mt-6"
@@ -63,14 +62,13 @@ export default async function DashboardPage({
       <PublicShell>
         <section className="mx-auto max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
           <div className="rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(18,24,32,0.96),rgba(11,16,22,0.92))] p-8 shadow-[0_24px_60px_rgba(0,0,0,0.28)]">
-            <div className="ftmo-kicker">Хяналтын самбар</div>
-            <h1 className="mt-4 text-4xl font-semibold tracking-[-0.05em] text-white">Идэвхтэй багц алга</h1>
+            <div className="ftmo-kicker">Member Dashboard</div>
+            <h1 className="mt-4 text-4xl font-semibold tracking-[-0.05em] text-white">No active package yet</h1>
             <p className="mt-3 max-w-2xl text-sm leading-7 text-white/60">
-              Багц сонгож төлбөрийн мэдээллээ илгээсний дараа сургалт, стратеги, хэрэгслүүд энд автоматаар
-              нээгдэнэ.
+              Choose a package and submit your payment details. Once it is approved, your courses and resources will unlock automatically.
             </p>
             <Link href="/packages" className={cn(buttonVariants(), "mt-6 inline-flex")}>
-              Багц сонгох
+              Choose Package
             </Link>
           </div>
         </section>
@@ -80,15 +78,17 @@ export default async function DashboardPage({
 
   const enrollment = dashboard.enrollment;
   const roomOccupancy = enrollment.room?.packageEnrollments.length ?? 0;
-  const completionCount = dashboard.courses.filter((course) => getProgressPercent(course.viewerProgress) >= 100).length;
+  const completionCount = dashboard.contentUnlocked
+    ? dashboard.courses.filter((course) => getProgressPercent(course.viewerProgress) >= 100).length
+    : 0;
 
   return (
     <PublicShell>
       <section className="mx-auto max-w-7xl space-y-8 px-4 py-10 sm:px-6 lg:px-8">
         <div className="space-y-4">
           <div>
-            <div className="ftmo-kicker">Хяналтын самбар</div>
-            <h1 className="mt-4 text-4xl font-semibold tracking-[-0.05em] text-white">Таны нээгдсэн эрхүүд</h1>
+            <div className="ftmo-kicker">Member Dashboard</div>
+            <h1 className="mt-4 text-4xl font-semibold tracking-[-0.05em] text-white">Your package access</h1>
           </div>
           <FlashMessage
             success={typeof flash.success === "string" ? flash.success : undefined}
@@ -100,7 +100,7 @@ export default async function DashboardPage({
           <Card className="border-white/10 bg-white/[0.035] backdrop-blur-xl">
             <CardHeader className="space-y-3">
               <div className="flex flex-wrap items-center gap-3">
-                <StatusBadge label="Миний багц" tone="info" />
+                <StatusBadge label="My package" tone="info" />
                 <StatusBadge label={packageEnrollmentStatusLabels[enrollment.status]} tone={enrollment.status === "ENROLLED" ? "success" : "warning"} />
                 {enrollment.payment ? (
                   <StatusBadge
@@ -114,56 +114,52 @@ export default async function DashboardPage({
             <CardContent className="space-y-5 text-sm text-white/68">
               <div className="grid gap-4 md:grid-cols-3">
                 <div className="rounded-[1.4rem] border border-white/10 bg-white/[0.04] px-4 py-4">
-                  <div className="text-xs uppercase tracking-[0.2em] text-white/45">Өрөө</div>
+                  <div className="text-xs uppercase tracking-[0.2em] text-white/45">Room</div>
                   <div className="mt-2 text-2xl font-semibold text-white">
-                    {enrollment.room ? `${roomOccupancy}/${enrollment.room.maxTraderCapacity}` : "Хүлээгдэж байна"}
+                    {enrollment.room ? `${roomOccupancy}/${enrollment.room.maxTraderCapacity}` : "Waiting for assignment"}
                   </div>
                 </div>
                 <div className="rounded-[1.4rem] border border-white/10 bg-white/[0.04] px-4 py-4">
-                  <div className="text-xs uppercase tracking-[0.2em] text-white/45">Сургалт</div>
-                  <div className="mt-2 text-2xl font-semibold text-white">
-                    {completionCount}/{dashboard.courses.length}
-                  </div>
+                  <div className="text-xs uppercase tracking-[0.2em] text-white/45">Courses</div>
+                  <div className="mt-2 text-2xl font-semibold text-white">{dashboard.contentUnlocked ? `${completionCount}/${dashboard.courses.length}` : "-"}</div>
                 </div>
                 <div className="rounded-[1.4rem] border border-white/10 bg-white/[0.04] px-4 py-4">
-                  <div className="text-xs uppercase tracking-[0.2em] text-white/45">Шинэчлэгдсэн</div>
+                  <div className="text-xs uppercase tracking-[0.2em] text-white/45">Updated</div>
                   <div className="mt-2 text-sm text-white">{formatDateTime(enrollment.updatedAt)}</div>
                 </div>
               </div>
 
               {(enrollment.status === "PENDING_PAYMENT" || enrollment.status === "PENDING_CONFIRMATION") ? (
                 <div className="rounded-[1.4rem] border border-[#3daafe]/18 bg-[#0781fe]/10 px-4 py-4">
-                  <div className="font-semibold text-white">Төлбөрийн эрх нээгдэхийг хүлээж байна</div>
+                  <div className="font-semibold text-white">Payment approval is still pending</div>
                   <p className="mt-2 leading-7 text-white/72">
-                    Багцын эрх бүрэн нээгдэхийн тулд төлбөрийн мэдээллээ илгээж, админаар баталгаажуулах
-                    шаардлагатай.
+                    Submit your payment details and wait for admin approval. Courses, resources, and coaching unlock only after payment is confirmed.
                   </p>
                   <Link href={`/checkout/${enrollment.packageTier.slug}`} className={cn(buttonVariants({ size: "sm" }), "mt-4 inline-flex")}>
-                    Төлбөрийн хуудас руу очих
+                    Open Checkout Page
                   </Link>
                 </div>
               ) : null}
 
               {enrollment.status === "AWAITING_DECISION" ? (
                 <div className="rounded-[1.4rem] border border-amber-400/25 bg-amber-500/10 px-4 py-4">
-                  <div className="font-semibold text-white">Өрөө 48 цагийн дотор дүүрээгүй байна</div>
+                  <div className="font-semibold text-white">This room did not fill in time</div>
                   <p className="mt-2 leading-7 text-white/72">
-                    Та ижил багцын өөр өрөөтэй нэгдэх эсвэл одоогийн өрөөндөө үргэлжлүүлэн хүлээх сонголт
-                    хийнэ үү.
+                    You can merge into another room of the same package or stay in the current room and keep waiting.
                   </p>
                   <div className="mt-4 flex flex-wrap gap-3">
                     <form action={recordEnrollmentDecisionAction}>
                       <input type="hidden" name="enrollmentId" value={enrollment.id} />
                       <input type="hidden" name="decision" value="MERGE" />
                       <button type="submit" className={buttonVariants({ size: "sm" })}>
-                        Нэгдэх
+                        Merge
                       </button>
                     </form>
                     <form action={recordEnrollmentDecisionAction}>
                       <input type="hidden" name="enrollmentId" value={enrollment.id} />
                       <input type="hidden" name="decision" value="WAIT" />
                       <button type="submit" className={buttonVariants({ variant: "outline", size: "sm" })}>
-                        Хүлээх
+                        Wait
                       </button>
                     </form>
                   </div>
@@ -179,28 +175,34 @@ export default async function DashboardPage({
                   <GraduationCap className="size-5" />
                 </div>
                 <div>
-                  <CardTitle className="text-xl text-white">Сургалт</CardTitle>
-                  <div className="text-sm text-white/50">Танд нээгдсэн бүх сургалт</div>
+                  <CardTitle className="text-xl text-white">Training</CardTitle>
+                  <div className="text-sm text-white/50">Courses available for this enrollment</div>
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
-                {dashboard.courses.length ? (
-                  dashboard.courses.map((course) => (
-                    <Link
-                      key={course.id}
-                      href={`/dashboard/courses/${course.slug}`}
-                      className="flex items-center justify-between rounded-[1.2rem] border border-white/8 bg-white/[0.03] px-4 py-4 transition hover:bg-white/[0.05]"
-                    >
-                      <div>
-                        <div className="font-medium text-white">{course.titleMn}</div>
-                        <div className="text-sm text-white/50">{getProgressPercent(course.viewerProgress)}%</div>
-                      </div>
-                      <ArrowRight className="size-4 text-white/40" />
-                    </Link>
-                  ))
+                {dashboard.contentUnlocked ? (
+                  dashboard.courses.length ? (
+                    dashboard.courses.map((course) => (
+                      <Link
+                        key={course.id}
+                        href={`/dashboard/courses/${course.slug}`}
+                        className="flex items-center justify-between rounded-[1.2rem] border border-white/8 bg-white/[0.03] px-4 py-4 transition hover:bg-white/[0.05]"
+                      >
+                        <div>
+                          <div className="font-medium text-white">{course.titleMn}</div>
+                          <div className="text-sm text-white/50">{getProgressPercent(course.viewerProgress)}%</div>
+                        </div>
+                        <ArrowRight className="size-4 text-white/40" />
+                      </Link>
+                    ))
+                  ) : (
+                    <div className="rounded-[1.2rem] border border-dashed border-white/10 px-4 py-4 text-sm text-white/55">
+                      No courses are available yet.
+                    </div>
+                  )
                 ) : (
-                  <div className="rounded-[1.2rem] border border-dashed border-white/10 px-4 py-4 text-sm text-white/55">
-                    Одоогоор нээгдсэн сургалт алга.
+                  <div className="rounded-[1.2rem] border border-dashed border-[#3daafe]/20 bg-[#0781fe]/10 px-4 py-4 text-sm leading-7 text-white/70">
+                    Courses unlock automatically after payment is approved.
                   </div>
                 )}
               </CardContent>
@@ -212,36 +214,44 @@ export default async function DashboardPage({
                   <BookOpen className="size-5" />
                 </div>
                 <div>
-                  <CardTitle className="text-xl text-white">Стратеги ба хэрэгсэл</CardTitle>
-                  <div className="text-sm text-white/50">Багцын түвшинд нээгдсэн нөөцүүд</div>
+                  <CardTitle className="text-xl text-white">Resources</CardTitle>
+                  <div className="text-sm text-white/50">Strategies, tools, and indicators for this package</div>
                 </div>
               </CardHeader>
               <CardContent className="grid gap-4 md:grid-cols-3">
-                <ResourceColumn
-                  icon={Sparkles}
-                  title="Стратеги"
-                  items={dashboard.strategies.map((item) => ({ id: item.id, title: item.titleMn, href: item.linkUrl }))}
-                />
-                <ResourceColumn
-                  icon={Wrench}
-                  title="Хэрэгслүүд"
-                  items={dashboard.tools.map((item) => ({ id: item.id, title: item.titleMn, href: item.linkUrl }))}
-                />
-                <ResourceColumn
-                  icon={Headphones}
-                  title="Индикатор"
-                  items={dashboard.indicators.map((item) => ({ id: item.id, title: item.titleMn, href: item.linkUrl }))}
-                />
+                {dashboard.contentUnlocked ? (
+                  <>
+                    <ResourceColumn
+                      icon={Sparkles}
+                      title="Strategies"
+                      items={dashboard.strategies.map((item) => ({ id: item.id, title: item.titleMn, href: item.linkUrl }))}
+                    />
+                    <ResourceColumn
+                      icon={Wrench}
+                      title="Tools"
+                      items={dashboard.tools.map((item) => ({ id: item.id, title: item.titleMn, href: item.linkUrl }))}
+                    />
+                    <ResourceColumn
+                      icon={Headphones}
+                      title="Indicators"
+                      items={dashboard.indicators.map((item) => ({ id: item.id, title: item.titleMn, href: item.linkUrl }))}
+                    />
+                  </>
+                ) : (
+                  <div className="rounded-[1.4rem] border border-dashed border-[#3daafe]/20 bg-[#0781fe]/10 p-4 text-sm leading-7 text-white/70 md:col-span-3">
+                    Resources unlock automatically after payment is approved.
+                  </div>
+                )}
               </CardContent>
             </Card>
 
             {dashboard.coaching ? (
               <Card className="border-white/10 bg-white/[0.035] backdrop-blur-xl">
                 <CardHeader>
-                  <CardTitle className="text-xl text-white">Коучинг</CardTitle>
+                  <CardTitle className="text-xl text-white">Coaching</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4 text-sm text-white/68">
-                  <p>Энэ багцад {dashboard.coaching.hours} цагийн 1:1 коучинг багтсан.</p>
+                  <p>This package includes {dashboard.coaching.hours} hours of 1:1 coaching.</p>
                   <div className="flex flex-wrap gap-3">
                     <a href={dashboard.coaching.url} target="_blank" rel="noreferrer" className={buttonVariants({ size: "sm" })}>
                       {dashboard.coaching.label}
@@ -294,7 +304,7 @@ function ResourceColumn({
         ))
       ) : (
         <div className="rounded-[1rem] border border-dashed border-white/10 px-3 py-3 text-sm text-white/50">
-          Нээгдсэн зүйл алга
+          No items available.
         </div>
       )}
     </div>

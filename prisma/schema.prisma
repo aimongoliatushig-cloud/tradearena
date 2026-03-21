@@ -148,6 +148,7 @@ model AdminUser {
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
   sessions     AdminSession[]
+  applicantComments ApplicantComment[]
 }
 
 model AdminSession {
@@ -267,15 +268,32 @@ model Applicant {
   status             ApplicantStatus      @default(PENDING)
   invitationSentAt   DateTime?
   joinedAt           DateTime?
+  trashedAt          DateTime?
   createdAt          DateTime             @default(now())
   updatedAt          DateTime             @updatedAt
   room               ChallengeRoom?       @relation(fields: [roomId], references: [id], onDelete: SetNull)
   notifications      NotificationDispatch[]
+  comments           ApplicantComment[]
 
   @@index([desiredAccountSize, status])
   @@index([clerkUserId, desiredAccountSize, status])
   @@index([roomId, status])
   @@index([email, createdAt])
+  @@index([trashedAt, createdAt])
+}
+
+model ApplicantComment {
+  id          String    @id @default(cuid())
+  applicantId String
+  adminUserId String
+  body        String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  applicant   Applicant @relation(fields: [applicantId], references: [id], onDelete: Cascade)
+  adminUser   AdminUser @relation(fields: [adminUserId], references: [id], onDelete: Cascade)
+
+  @@index([applicantId, createdAt])
+  @@index([adminUserId, createdAt])
 }
 
 model NotificationDispatch {

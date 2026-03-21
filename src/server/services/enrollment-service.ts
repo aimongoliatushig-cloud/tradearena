@@ -1,4 +1,5 @@
 import {
+  type AccountSize,
   ChallengeStep,
   EnrollmentAuditType,
   EnrollmentDecisionChoice,
@@ -23,6 +24,45 @@ const OPEN_ENROLLMENT_STATUSES = [
   PackageEnrollmentStatus.ENROLLED,
   PackageEnrollmentStatus.AWAITING_DECISION,
 ] as const;
+const INTERACTIVE_TRANSACTION_OPTIONS = {
+  maxWait: 10_000,
+  timeout: 20_000,
+} as const;
+
+function buildApplicantLookupKey(clerkUserId: string, accountSize: AccountSize) {
+  return `${clerkUserId}:${accountSize}`;
+}
+
+function getAdminPaymentState(status: PaymentStatus | null | undefined) {
+  return status === PaymentStatus.CONFIRMED ? "paid" : "pending";
+}
+
+function getPendingPaymentStatus(payment: {
+  reference?: string | null;
+  proofNote?: string | null;
+  proofUrl?: string | null;
+  submittedAt?: Date | null;
+}) {
+  return payment.reference || payment.proofNote || payment.proofUrl || payment.submittedAt
+    ? PaymentStatus.PENDING_CONFIRMATION
+    : PaymentStatus.PENDING_SUBMISSION;
+}
+
+function getPendingEnrollmentStatus(status: PaymentStatus) {
+  return status === PaymentStatus.PENDING_CONFIRMATION
+    ? PackageEnrollmentStatus.PENDING_CONFIRMATION
+    : PackageEnrollmentStatus.PENDING_PAYMENT;
+}
+
+export function hasConfirmedPaymentAccess(
+  enrollment: {
+    payment?: {
+      status: PaymentStatus;
+    } | null;
+  } | null | undefined,
+) {
+  return enrollment?.payment?.status === PaymentStatus.CONFIRMED;
+}
 
 function getDecisionDeadline(base = new Date()) {
   return new Date(base.getTime() + PACKAGE_ROOM_DECISION_WINDOW_HOURS * 60 * 60 * 1000);
@@ -541,13 +581,72 @@ export async function confirmPaymentAndEnroll(input: { paymentId: string; actorI
       note: `${payment.packageTier.nameMn} багцын төлбөр баталгаажсаны дараа өрөөнд автоматаар оноов.`,
     });
 
-    await tx.packageEnrollment.update({
+    return tx.packageEnrollment.findUnique({
       where: { id: updatedEnrollment.id },
-      data: {
-        status: PackageEnrollmentStatus.ENROLLED,
-        unlockedAt: new Date(),
+      include: {
+        payment: true,
+        packageTier: true,
+        room: true,
       },
     });
+  }, INTERACTIVE_TRANSACTION_OPTIONS);
+}
+
+export async function markPaymentAsUnpaid(input: { paymentId: string; actorId?: string }) {
+  await evaluateUnderfilledPackageRooms();
+
+  return db.$transaction(async (tx) => {
+    const payment = await tx.paymentRecord.findUnique({
+      where: { id: input.paymentId },
+      include: {
+        packageTier: true,
+        enrollment: {
+          include: {
+            room: true,
+          },
+        },
+      },
+    });
+
+    if (!payment?.enrollment) {
+      throw new Error("Ð¢Ó©Ð»Ð±Ó©Ñ€Ñ‚ÑÐ¹ Ñ…Ð¾Ð»Ð±Ð¾Ð³Ð´ÑÐ¾Ð½ ÑÐ»ÑÑÐ»Ñ‚ Ð¾Ð»Ð´ÑÐ¾Ð½Ð³Ò¯Ð¹.");
+    }
+
+    const enrollment = payment.enrollment;
+    const nextPaymentStatus = getPendingPaymentStatus(payment);
+    const nextEnrollmentStatus = getPendingEnrollmentStatus(nextPaymentStatus);
+    const previousRoomId = enrollment.roomId;
+
+    await tx.paymentRecord.update({
+      where: { id: payment.id },
+      data: {
+        status: nextPaymentStatus,
+        confirmedAt: null,
+      },
+    });
+
+    await tx.packageEnrollment.update({
+      where: { id: enrollment.id },
+      data: {
+        status: nextEnrollmentStatus,
+        roomId: null,
+        unlockedAt: null,
+        decisionChoice: null,
+        decidedAt: null,
+      },
+    });
+
+    await createAuditLog(tx, {
+      enrollmentId: enrollment.id,
+      type: EnrollmentAuditType.NOTE,
+      message: `${payment.packageTier.nameMn} payment was returned to unpaid status by admin.`,
+      actorId: input.actorId,
+      fromRoomId: previousRoomId,
+    });
+
+    if (previousRoomId) {
+      await syncPackageRoomStatus(tx, previousRoomId);
+    }
 
     return tx.packageEnrollment.findUnique({
       where: { id: enrollment.id },
@@ -557,7 +656,7 @@ export async function confirmPaymentAndEnroll(input: { paymentId: string; actorI
         room: true,
       },
     });
-  });
+  }, INTERACTIVE_TRANSACTION_OPTIONS);
 }
 
 export async function getCurrentEnrollmentForUser(clerkUserId: string) {
@@ -596,20 +695,110 @@ export async function getCurrentEnrollmentForUser(clerkUserId: string) {
   });
 }
 
-export async function listAdminEnrollments() {
+export async function listAdminEnrollments(filters?: {
+  query?: string;
+  paymentState?: "all" | "pending" | "paid";
+}) {
   await evaluateUnderfilledPackageRooms();
 
-  return db.packageEnrollment.findMany({
+  const enrollments = await db.packageEnrollment.findMany({
     include: {
       packageTier: true,
       room: true,
       payment: true,
       auditLogs: {
         orderBy: { createdAt: "desc" },
-        take: 3,
+        take: 10,
       },
     },
-    orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
+    orderBy: [{ createdAt: "desc" }, { updatedAt: "desc" }],
+  });
+
+  const clerkUserIds = [...new Set(enrollments.map((item) => item.clerkUserId))];
+  const applicants = clerkUserIds.length
+    ? await db.applicant.findMany({
+        where: {
+          clerkUserId: {
+            in: clerkUserIds,
+          },
+        },
+        select: {
+          id: true,
+          clerkUserId: true,
+          fullName: true,
+          email: true,
+          phoneNumber: true,
+          telegramUsername: true,
+          desiredAccountSize: true,
+          note: true,
+          status: true,
+          createdAt: true,
+          room: {
+            select: {
+              title: true,
+            },
+          },
+        },
+        orderBy: [{ createdAt: "desc" }],
+      })
+    : [];
+
+  const applicantByEnrollmentKey = new Map<string, (typeof applicants)[number]>();
+  for (const applicant of applicants) {
+    if (!applicant.clerkUserId) {
+      continue;
+    }
+
+    const key = buildApplicantLookupKey(applicant.clerkUserId, applicant.desiredAccountSize);
+    if (!applicantByEnrollmentKey.has(key)) {
+      applicantByEnrollmentKey.set(key, applicant);
+    }
+  }
+
+  let results = enrollments.map((enrollment) => {
+    const applicant =
+      applicantByEnrollmentKey.get(buildApplicantLookupKey(enrollment.clerkUserId, enrollment.packageTier.accountSize)) ?? null;
+    const appliedAt = applicant?.createdAt ?? enrollment.createdAt;
+
+    return {
+      ...enrollment,
+      applicant,
+      appliedAt,
+    };
+  });
+
+  if (filters?.paymentState && filters.paymentState !== "all") {
+    results = results.filter((enrollment) => getAdminPaymentState(enrollment.payment?.status) === filters.paymentState);
+  }
+
+  const normalizedQuery = filters?.query?.trim().toLowerCase();
+  if (normalizedQuery) {
+    results = results.filter((enrollment) => {
+      const haystack = [
+        enrollment.applicant?.fullName,
+        enrollment.applicant?.email,
+        enrollment.applicant?.phoneNumber,
+        enrollment.applicant?.telegramUsername,
+        enrollment.payment?.customerName,
+        enrollment.payment?.customerEmail,
+        enrollment.payment?.reference,
+        enrollment.clerkUserId,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+      return haystack.includes(normalizedQuery);
+    });
+  }
+
+  return results.sort((left, right) => {
+    const appliedDifference = new Date(right.appliedAt).getTime() - new Date(left.appliedAt).getTime();
+    if (appliedDifference !== 0) {
+      return appliedDifference;
+    }
+
+    return new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime();
   });
 }
 

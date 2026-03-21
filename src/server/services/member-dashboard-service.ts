@@ -1,4 +1,4 @@
-import { getCurrentEnrollmentForUser } from "@/server/services/enrollment-service";
+import { getCurrentEnrollmentForUser, hasConfirmedPaymentAccess } from "@/server/services/enrollment-service";
 import { listAccessibleCourses } from "@/server/services/course-service";
 import { listAccessibleResources } from "@/server/services/resource-service";
 import { getMemberExperienceConfig } from "@/server/services/settings-service";
@@ -8,7 +8,20 @@ export async function getMemberDashboard(clerkUserId: string) {
 
   if (!enrollment) {
     return {
+      contentUnlocked: false,
       enrollment: null,
+      courses: [],
+      strategies: [],
+      tools: [],
+      indicators: [],
+      coaching: null,
+    };
+  }
+
+  if (!hasConfirmedPaymentAccess(enrollment)) {
+    return {
+      contentUnlocked: false,
+      enrollment,
       courses: [],
       strategies: [],
       tools: [],
@@ -32,6 +45,7 @@ export async function getMemberDashboard(clerkUserId: string) {
   );
 
   return {
+    contentUnlocked: true,
     enrollment,
     courses: courses.map((course) => ({
       ...course,

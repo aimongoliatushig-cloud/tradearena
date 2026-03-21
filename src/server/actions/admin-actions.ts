@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
-import { createAdminSession, destroyAdminSession, verifyPassword } from "@/lib/auth";
+import { createAdminSession, destroyAdminSession, requireAdminUser, verifyPassword } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { getUserFacingErrorMessage } from "@/lib/error-utils";
 import {
@@ -17,7 +17,9 @@ import {
 } from "@/lib/package-validators";
 import {
   adminLoginSchema,
+  applicantCommentSchema,
   applicantStatusSchema,
+  applicantTrashSchema,
   roomFormSchema,
   traderCompletionRecordSchema,
   settingsSchema,
@@ -25,9 +27,9 @@ import {
   traderViolationSchema,
 } from "@/lib/validators";
 import type { ActionState } from "@/server/actions/action-state";
-import { updateApplicantStatus } from "@/server/services/applicant-service";
+import { addApplicantComment, moveApplicantToTrash, restoreApplicantFromTrash, updateApplicantStatus } from "@/server/services/applicant-service";
 import { upsertCourse } from "@/server/services/course-service";
-import { confirmPaymentAndEnroll, mergePackageRooms, moveEnrollmentToRoom } from "@/server/services/enrollment-service";
+import { confirmPaymentAndEnroll, markPaymentAsUnpaid, mergePackageRooms, moveEnrollmentToRoom } from "@/server/services/enrollment-service";
 import { upsertPackageTier } from "@/server/services/package-service";
 import { upsertResource } from "@/server/services/resource-service";
 import { deleteTrader, upsertRoom, upsertTrader } from "@/server/services/room-service";
@@ -39,8 +41,16 @@ function toBoolean(value: FormDataEntryValue | null) {
 }
 
 function buildRedirect(pathname: string, type: "success" | "error", message: string) {
-  const params = new URLSearchParams({ [type]: message });
-  return `${pathname}?${params.toString()}`;
+  const [pathWithSearch, hash = ""] = pathname.split("#", 2);
+  const [basePath, existingSearch = ""] = pathWithSearch.split("?", 2);
+  const params = new URLSearchParams(existingSearch);
+  params.delete("success");
+  params.delete("error");
+  params.set(type, message);
+
+  const query = params.toString();
+  const nextPath = query ? `${basePath}?${query}` : basePath;
+  return hash ? `${nextPath}#${hash}` : nextPath;
 }
 
 function redirectWithMessage(pathname: string, type: "success" | "error", message: string): never {
@@ -259,6 +269,63 @@ export async function updateApplicantStatusAction(formData: FormData) {
   redirectWithMessage(returnPath, "success", "Applicant status updated.");
 }
 
+export async function addApplicantCommentAction(formData: FormData) {
+  const returnPath = String(formData.get("returnPath") || "/admin/applicants");
+  const admin = await requireAdminUser();
+
+  try {
+    const parsed = applicantCommentSchema.parse({
+      applicantId: formData.get("applicantId"),
+      body: formData.get("body"),
+    });
+
+    await addApplicantComment({
+      applicantId: parsed.applicantId,
+      adminUserId: admin.id,
+      body: parsed.body,
+    });
+    revalidatePaths(["/admin/applicants"]);
+  } catch (error) {
+    redirectWithMessage(returnPath, "error", getUserFacingErrorMessage(error, "Failed to save applicant comment."));
+  }
+
+  redirectWithMessage(returnPath, "success", "Applicant comment saved.");
+}
+
+export async function moveApplicantToTrashAction(formData: FormData) {
+  const returnPath = String(formData.get("returnPath") || "/admin/applicants");
+
+  try {
+    const parsed = applicantTrashSchema.parse({
+      applicantId: formData.get("applicantId"),
+    });
+
+    await moveApplicantToTrash(parsed);
+    revalidatePaths(["/admin/applicants"]);
+  } catch (error) {
+    redirectWithMessage(returnPath, "error", getUserFacingErrorMessage(error, "Failed to move applicant to trash."));
+  }
+
+  redirectWithMessage(returnPath, "success", "Applicant moved to trash.");
+}
+
+export async function restoreApplicantFromTrashAction(formData: FormData) {
+  const returnPath = String(formData.get("returnPath") || "/admin/applicants?view=trash");
+
+  try {
+    const parsed = applicantTrashSchema.parse({
+      applicantId: formData.get("applicantId"),
+    });
+
+    await restoreApplicantFromTrash(parsed);
+    revalidatePaths(["/admin/applicants"]);
+  } catch (error) {
+    redirectWithMessage(returnPath, "error", getUserFacingErrorMessage(error, "Failed to restore applicant from trash."));
+  }
+
+  redirectWithMessage(returnPath, "success", "Applicant restored.");
+}
+
 export async function saveSettingsAction(formData: FormData) {
   const returnPath = String(formData.get("returnPath") || "/admin/settings");
 
@@ -378,12 +445,32 @@ export async function confirmManualPaymentAction(formData: FormData) {
       paymentId: parsed.paymentId,
       actorId: "admin",
     });
-    revalidatePaths(["/admin/enrollments", "/admin/rooms", "/dashboard", "/packages"]);
+    revalidatePaths(["/admin/enrollments", "/admin/applicants", "/admin/rooms", "/dashboard", "/packages"]);
   } catch (error) {
     redirectWithMessage(returnPath, "error", getUserFacingErrorMessage(error, "Төлбөр баталгаажуулах үед алдаа гарлаа."));
   }
 
   redirectWithMessage(returnPath, "success", "Төлбөр баталгаажлаа.");
+}
+
+export async function markPaymentAsUnpaidAction(formData: FormData) {
+  const returnPath = String(formData.get("returnPath") || "/admin/enrollments");
+
+  try {
+    const parsed = paymentConfirmationSchema.parse({
+      paymentId: formData.get("paymentId"),
+    });
+
+    await markPaymentAsUnpaid({
+      paymentId: parsed.paymentId,
+      actorId: "admin",
+    });
+    revalidatePaths(["/admin/enrollments", "/admin/applicants", "/admin/rooms", "/dashboard", "/packages"]);
+  } catch (error) {
+    redirectWithMessage(returnPath, "error", getUserFacingErrorMessage(error, "Failed to return this payment to unpaid status."));
+  }
+
+  redirectWithMessage(returnPath, "success", "Payment was returned to unpaid status.");
 }
 
 export async function moveEnrollmentAction(formData: FormData) {

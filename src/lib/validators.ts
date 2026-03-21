@@ -78,6 +78,15 @@ export const applicantStatusSchema = z.object({
   roomId: z.string().cuid().optional(),
 });
 
+export const applicantCommentSchema = z.object({
+  applicantId: z.string().cuid(),
+  body: z.string().trim().min(2, "Comment is too short.").max(1500, "Comment is too long."),
+});
+
+export const applicantTrashSchema = z.object({
+  applicantId: z.string().cuid(),
+});
+
 export const invitationSchema = z.object({
   accountSize: z.enum(ACCOUNT_SIZE_OPTIONS),
   roomLink: z.string().trim().url("Enter a valid room URL."),

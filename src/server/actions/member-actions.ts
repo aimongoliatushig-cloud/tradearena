@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 
 import { courseProgressSchema, enrollmentDecisionSchema, manualPaymentSubmissionSchema } from "@/lib/package-validators";
 import { setCourseProgress } from "@/server/services/course-service";
-import { getCurrentEnrollmentForUser, recordEnrollmentDecision, submitManualPayment } from "@/server/services/enrollment-service";
+import { getCurrentEnrollmentForUser, hasConfirmedPaymentAccess, recordEnrollmentDecision, submitManualPayment } from "@/server/services/enrollment-service";
 
 function redirectWithMessage(pathname: string, type: "success" | "error", message: string): never {
   const params = new URLSearchParams({ [type]: message });
@@ -95,6 +95,10 @@ export async function saveCourseProgressAction(formData: FormData) {
     });
 
     const enrollment = await getCurrentEnrollmentForUser(userId);
+
+    if (!hasConfirmedPaymentAccess(enrollment)) {
+      redirectWithMessage("/dashboard", "error", "Төлбөр баталгаажсаны дараа сургалтын явц хадгалагдана.");
+    }
 
     await setCourseProgress({
       clerkUserId: userId,
