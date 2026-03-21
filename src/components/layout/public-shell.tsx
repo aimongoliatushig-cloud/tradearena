@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { BarChart3, BookOpen, ChevronDown, History, LayoutGrid, Newspaper, Package, UserRound } from "lucide-react";
+import { BadgeInfo, BarChart3, BookOpen, ChevronDown, History, LayoutGrid, Newspaper, Package, UserRound } from "lucide-react";
 
 const programSubmenuItems = [
   {
@@ -17,6 +17,7 @@ const programSubmenuItems = [
 
 const navItems = [
   { href: "/", label: "Нүүр", icon: LayoutGrid },
+  { href: "/about", label: "Бидний тухай", icon: BadgeInfo },
   { href: "/packages", label: "Багцууд", icon: Package },
   { href: "/dashboard", label: "Самбар", icon: UserRound },
   { href: "/program", label: "Хөтөлбөр", icon: BookOpen, children: programSubmenuItems },

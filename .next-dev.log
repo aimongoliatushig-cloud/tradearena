@@ -1136,3 +1136,5 @@ Transaction API error: A query cannot be executed on an expired transaction. The
  GET /admin/courses 200 in 1734ms (compile: 23ms, proxy.ts: 542ms, render: 1168ms)
 ✓ Finished filesystem cache database compaction in 112s
 ✓ Finished writing to filesystem cache in 110s
+✓ Finished filesystem cache database compaction in 102s
+✓ Finished writing to filesystem cache in 100s

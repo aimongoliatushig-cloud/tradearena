@@ -84,9 +84,9 @@ export async function getMemberExperienceConfig() {
 
   return {
     coachingCtaLabel: value?.coachingCtaLabel ?? "Коучингийн цаг захиалах",
-    coachingCtaUrl: value?.coachingCtaUrl ?? "https://t.me/tradearenapro",
+    coachingCtaUrl: value?.coachingCtaUrl ?? "https://t.me/tradearenamgl",
     supportCtaLabel: value?.supportCtaLabel ?? "Дэмжлэгтэй холбогдох",
-    supportCtaUrl: value?.supportCtaUrl ?? "https://t.me/tradearenapro",
+    supportCtaUrl: value?.supportCtaUrl ?? "https://t.me/tradearenamgl",
   };
 }
 
