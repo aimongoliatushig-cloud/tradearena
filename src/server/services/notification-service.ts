@@ -1,4 +1,4 @@
-import { ApplicantStatus, NotificationChannel, NotificationStatus, type NotificationKind } from "@prisma/client";
+import { ApplicantStatus, NotificationChannel, NotificationStatus, Prisma, type NotificationKind } from "@prisma/client";
 import nodemailer, { type Transporter } from "nodemailer";
 
 import { db } from "@/lib/db";
@@ -19,6 +19,8 @@ const ROOM_EMAIL_RECIPIENT_STATUSES = [
   ApplicantStatus.JOINED,
 ] as const;
 
+const TEAM_ALERT_RECIPIENTS = ["teamfirewfg@gmail.com", "aimongoliatushig@gmail.com"] as const;
+const NEW_USER_ALERT_WINDOW_MS = 2 * 60 * 60 * 1000;
 const PERFORMANCE_REPORT_TIMES = new Set(["09:00", "21:00"]);
 
 function canSendEmail() {
@@ -43,6 +45,51 @@ function createTransporter() {
 
 function buildRoomUrl(slug: string) {
   return `${env.APP_BASE_URL.replace(/\/+$/, "")}/rooms/${slug}`;
+}
+
+function buildInternalAlertKey(type: string, uniqueId: string) {
+  return `internal_alert:${type}:${uniqueId}`;
+}
+
+async function reserveInternalAlert(key: string, value: Record<string, unknown>) {
+  try {
+    await db.appSetting.create({
+      data: {
+        key,
+        value: value as Prisma.InputJsonValue,
+      },
+    });
+
+    return true;
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      return false;
+    }
+
+    throw error;
+  }
+}
+
+async function sendTeamAlertEmails(input: {
+  applicantId?: string;
+  kind?: NotificationKind;
+  message: string;
+  roomId?: string;
+  subject: string;
+}) {
+  const transporter = createTransporter();
+
+  for (const recipient of TEAM_ALERT_RECIPIENTS) {
+    await sendLoggedEmail({
+      applicantId: input.applicantId,
+      roomId: input.roomId,
+      kind: input.kind ?? NOTIFICATION_KIND.GENERAL_UPDATE,
+      recipient,
+      subject: input.subject,
+      message: input.message,
+      transporter,
+    });
+  }
 }
 
 async function sendLoggedEmail(input: {
@@ -164,6 +211,90 @@ export async function sendSignupNotifications(applicantId: string) {
     ].join("\n"),
     transporter,
   });
+}
+
+export async function notifyTeamAboutNewUserSignup(input: {
+  clerkUserId: string;
+  createdAt?: Date | number | null;
+  email?: string | null;
+  name?: string | null;
+}) {
+  const createdAt =
+    input.createdAt instanceof Date
+      ? input.createdAt
+      : typeof input.createdAt === "number"
+        ? new Date(input.createdAt)
+        : null;
+
+  if (!createdAt || Number.isNaN(createdAt.getTime()) || Date.now() - createdAt.getTime() > NEW_USER_ALERT_WINDOW_MS) {
+    return false;
+  }
+
+  const markerKey = buildInternalAlertKey("new-user-signup", input.clerkUserId);
+  const reserved = await reserveInternalAlert(markerKey, {
+    clerkUserId: input.clerkUserId,
+    createdAt: createdAt.toISOString(),
+    email: input.email ?? null,
+    name: input.name ?? null,
+    reservedAt: new Date().toISOString(),
+  });
+
+  if (!reserved) {
+    return false;
+  }
+
+  await sendTeamAlertEmails({
+    subject: "Шинэ хэрэглэгч бүртгүүллээ",
+    message: [
+      "Шинэ хэрэглэгч бүртгүүллээ.",
+      "",
+      `Нэр: ${input.name?.trim() || "-"}`,
+      `И-мэйл: ${input.email?.trim() || "-"}`,
+      `Clerk ID: ${input.clerkUserId}`,
+    ].join("\n"),
+  });
+
+  return true;
+}
+
+export async function notifyTeamAboutProgramSignup(input: {
+  clerkUserId: string;
+  customerEmail?: string | null;
+  customerName?: string | null;
+  enrollmentId: string;
+  packageName: string;
+  packageSlug: string;
+}) {
+  const markerKey = buildInternalAlertKey("program-signup", input.enrollmentId);
+  const reserved = await reserveInternalAlert(markerKey, {
+    clerkUserId: input.clerkUserId,
+    customerEmail: input.customerEmail ?? null,
+    customerName: input.customerName ?? null,
+    enrollmentId: input.enrollmentId,
+    packageName: input.packageName,
+    packageSlug: input.packageSlug,
+    reservedAt: new Date().toISOString(),
+  });
+
+  if (!reserved) {
+    return false;
+  }
+
+  await sendTeamAlertEmails({
+    subject: `Хөтөлбөрт бүртгүүллээ: ${input.packageName}`,
+    message: [
+      "Хэрэглэгч хөтөлбөрт бүртгүүллээ.",
+      "",
+      `Хөтөлбөр: ${input.packageName}`,
+      `Slug: ${input.packageSlug}`,
+      `Нэр: ${input.customerName?.trim() || "-"}`,
+      `И-мэйл: ${input.customerEmail?.trim() || "-"}`,
+      `Clerk ID: ${input.clerkUserId}`,
+      `Enrollment ID: ${input.enrollmentId}`,
+    ].join("\n"),
+  });
+
+  return true;
 }
 
 export async function sendRoomReadyNotifications(roomId: string) {

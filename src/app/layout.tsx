@@ -5,6 +5,7 @@ import { Manrope } from "next/font/google";
 import { Toaster } from "sonner";
 
 import { ClerkHeaderActions } from "@/components/shared/clerk-auth-controls";
+import { notifyTeamAboutNewUserSignup } from "@/server/services/notification-service";
 
 import "./globals.css";
 
@@ -26,6 +27,15 @@ export default async function RootLayout({
 }>) {
   const { userId } = await auth();
   const viewer = userId ? await currentUser() : null;
+
+  if (userId) {
+    await notifyTeamAboutNewUserSignup({
+      clerkUserId: userId,
+      createdAt: viewer?.createdAt ?? null,
+      name: viewer ? [viewer.firstName, viewer.lastName].filter(Boolean).join(" ") || viewer.username : null,
+      email: viewer?.primaryEmailAddress?.emailAddress ?? null,
+    });
+  }
 
   return (
     <html lang="mn" className={`${manrope.variable} dark`}>

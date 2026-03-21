@@ -16,6 +16,7 @@ import {
 import { PACKAGE_ROOM_DECISION_WINDOW_HOURS } from "@/lib/constants";
 import { db } from "@/lib/db";
 import { NOTIFICATION_KIND } from "@/lib/prisma-enums";
+import { notifyTeamAboutProgramSignup } from "@/server/services/notification-service";
 
 const ACTIVE_ROOM_MEMBER_STATUSES = [PackageEnrollmentStatus.ENROLLED, PackageEnrollmentStatus.AWAITING_DECISION] as const;
 const OPEN_ENROLLMENT_STATUSES = [
@@ -437,7 +438,7 @@ export async function createCheckoutEnrollment(input: {
     return existing;
   }
 
-  return db.$transaction(async (tx) => {
+  const enrollment = await db.$transaction(async (tx) => {
     const payment = await tx.paymentRecord.create({
       data: {
         clerkUserId: input.clerkUserId,
@@ -473,6 +474,17 @@ export async function createCheckoutEnrollment(input: {
 
     return enrollment;
   });
+
+  await notifyTeamAboutProgramSignup({
+    clerkUserId: input.clerkUserId,
+    enrollmentId: enrollment.id,
+    packageName: enrollment.packageTier.nameMn,
+    packageSlug: enrollment.packageTier.slug,
+    customerName: enrollment.payment?.customerName ?? input.customerName ?? null,
+    customerEmail: enrollment.payment?.customerEmail ?? input.customerEmail ?? null,
+  });
+
+  return enrollment;
 }
 
 export async function submitManualPayment(input: {
