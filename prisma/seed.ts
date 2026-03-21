@@ -155,7 +155,7 @@ async function main() {
     update: {
       value: {
         bankName: "Golomt bank",
-        accountHolder: "TradeArena LLC",
+        accountHolder: "Т. Баттүшиг",
         accountNumber: "MN530015001605199269",
         transactionValueHint: "Use your phone number and full name as the payment reference.",
       },
@@ -164,7 +164,7 @@ async function main() {
       key: "payment_details",
       value: {
         bankName: "Golomt bank",
-        accountHolder: "TradeArena LLC",
+        accountHolder: "Т. Баттүшиг",
         accountNumber: "MN530015001605199269",
         transactionValueHint: "Use your phone number and full name as the payment reference.",
       },

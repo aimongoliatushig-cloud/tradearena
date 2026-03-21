@@ -20,7 +20,7 @@ export const DEFAULT_ENTRY_FEE_BY_ACCOUNT_SIZE: Record<AccountSize, number> = {
 
 export const DEFAULT_PAYMENT_DETAILS = {
   bankName: "Голомт банк",
-  accountHolder: "Battushig",
+  accountHolder: "Т. Баттүшиг",
   accountNumber: "MN530015001605199269",
   transactionValueHint: "Гүйлгээний утга дээр өрөөний нэр болон овог нэрээ бичнэ үү.",
 } as const;
