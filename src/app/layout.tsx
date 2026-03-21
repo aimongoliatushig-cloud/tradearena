@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { auth, currentUser } from "@clerk/nextjs/server";
+import { Analytics } from "@vercel/analytics/react";
 import { Manrope } from "next/font/google";
 import { Toaster } from "sonner";
 
@@ -53,6 +54,7 @@ export default async function RootLayout({
           {children}
         </div>
         <Toaster theme="dark" richColors position="top-right" />
+        <Analytics />
       </body>
     </html>
   );

@@ -1844,3 +1844,57 @@ The column `(not available)` does not exist in the current database.
 [SCHEDULER][2026-03-20T18:26:03.828Z][tick-finished] {"dueRooms":0,"lifecycleUpdates":0,"minuteKey":"2026-03-20T18:26:00.000Z","reason":"cron"}
  GET /dashboard 200 in 5.2s (compile: 4ms, proxy.ts: 12ms, render: 5.2s)
 ✓ Finished filesystem cache database compaction in 26.2s
+[SCHEDULER][2026-03-20T18:27:05.048Z][tick-finished] {"dueRooms":0,"lifecycleUpdates":0,"minuteKey":"2026-03-20T18:27:00.000Z","reason":"cron"}
+[SCHEDULER][2026-03-20T18:28:04.245Z][tick-finished] {"dueRooms":0,"lifecycleUpdates":0,"minuteKey":"2026-03-20T18:28:00.000Z","reason":"cron"}
+[SCHEDULER][2026-03-20T18:29:04.197Z][tick-finished] {"dueRooms":0,"lifecycleUpdates":0,"minuteKey":"2026-03-20T18:29:00.000Z","reason":"cron"}
+[SCHEDULER][2026-03-20T18:30:04.723Z][tick-finished] {"dueRooms":0,"lifecycleUpdates":0,"minuteKey":"2026-03-20T18:30:00.000Z","reason":"cron"}
+[SCHEDULER][2026-03-20T18:31:04.178Z][tick-finished] {"dueRooms":0,"lifecycleUpdates":0,"minuteKey":"2026-03-20T18:31:00.000Z","reason":"cron"}
+[SCHEDULER][2026-03-20T18:32:04.805Z][tick-finished] {"dueRooms":0,"lifecycleUpdates":0,"minuteKey":"2026-03-20T18:32:00.000Z","reason":"cron"}
+[SCHEDULER][2026-03-20T18:33:04.387Z][tick-finished] {"dueRooms":0,"lifecycleUpdates":0,"minuteKey":"2026-03-20T18:33:00.000Z","reason":"cron"}
+[SCHEDULER][2026-03-20T18:34:04.407Z][tick-finished] {"dueRooms":0,"lifecycleUpdates":0,"minuteKey":"2026-03-20T18:34:00.000Z","reason":"cron"}
+[SCHEDULER][2026-03-20T18:35:04.524Z][tick-finished] {"dueRooms":0,"lifecycleUpdates":0,"minuteKey":"2026-03-20T18:35:00.000Z","reason":"cron"}
+[SCHEDULER][2026-03-20T18:36:04.427Z][tick-finished] {"dueRooms":0,"lifecycleUpdates":0,"minuteKey":"2026-03-20T18:36:00.000Z","reason":"cron"}
+[SCHEDULER][2026-03-20T18:37:04.654Z][tick-finished] {"dueRooms":0,"lifecycleUpdates":0,"minuteKey":"2026-03-20T18:37:00.000Z","reason":"cron"}
+[SCHEDULER][2026-03-20T18:38:04.385Z][tick-finished] {"dueRooms":0,"lifecycleUpdates":0,"minuteKey":"2026-03-20T18:38:00.000Z","reason":"cron"}
+[SCHEDULER][2026-03-20T18:39:04.345Z][tick-finished] {"dueRooms":0,"lifecycleUpdates":0,"minuteKey":"2026-03-20T18:39:00.000Z","reason":"cron"}
+[SCHEDULER][2026-03-20T18:40:04.485Z][tick-finished] {"dueRooms":0,"lifecycleUpdates":0,"minuteKey":"2026-03-20T18:40:00.000Z","reason":"cron"}
+[SCHEDULER][2026-03-20T18:41:04.525Z][tick-finished] {"dueRooms":0,"lifecycleUpdates":0,"minuteKey":"2026-03-20T18:41:00.000Z","reason":"cron"}
+[SCHEDULER][2026-03-20T18:42:04.222Z][tick-finished] {"dueRooms":0,"lifecycleUpdates":0,"minuteKey":"2026-03-20T18:42:00.000Z","reason":"cron"}
+[SCHEDULER][2026-03-20T18:43:04.625Z][tick-finished] {"dueRooms":0,"lifecycleUpdates":0,"minuteKey":"2026-03-20T18:43:00.000Z","reason":"cron"}
+[SCHEDULER][2026-03-20T18:44:04.454Z][tick-finished] {"dueRooms":0,"lifecycleUpdates":0,"minuteKey":"2026-03-20T18:44:00.000Z","reason":"cron"}
+[SCHEDULER][2026-03-20T18:45:04.409Z][tick-finished] {"dueRooms":0,"lifecycleUpdates":0,"minuteKey":"2026-03-20T18:45:00.000Z","reason":"cron"}
+[SCHEDULER][2026-03-20T18:46:04.196Z][tick-finished] {"dueRooms":0,"lifecycleUpdates":0,"minuteKey":"2026-03-20T18:46:00.000Z","reason":"cron"}
+[SCHEDULER][2026-03-20T18:47:04.424Z][tick-finished] {"dueRooms":0,"lifecycleUpdates":0,"minuteKey":"2026-03-20T18:47:00.000Z","reason":"cron"}
+[SCHEDULER][2026-03-20T18:48:04.584Z][tick-finished] {"dueRooms":0,"lifecycleUpdates":0,"minuteKey":"2026-03-20T18:48:00.000Z","reason":"cron"}
+[SCHEDULER][2026-03-20T18:49:04.426Z][tick-finished] {"dueRooms":0,"lifecycleUpdates":0,"minuteKey":"2026-03-20T18:49:00.000Z","reason":"cron"}
+[SCHEDULER][2026-03-20T18:50:04.223Z][tick-finished] {"dueRooms":0,"lifecycleUpdates":0,"minuteKey":"2026-03-20T18:50:00.000Z","reason":"cron"}
+[SCHEDULER][2026-03-20T18:51:04.406Z][tick-finished] {"dueRooms":0,"lifecycleUpdates":0,"minuteKey":"2026-03-20T18:51:00.000Z","reason":"cron"}
+[SCHEDULER][2026-03-20T18:52:04.363Z][tick-finished] {"dueRooms":0,"lifecycleUpdates":0,"minuteKey":"2026-03-20T18:52:00.000Z","reason":"cron"}
+[SCHEDULER][2026-03-20T18:53:04.155Z][tick-finished] {"dueRooms":0,"lifecycleUpdates":0,"minuteKey":"2026-03-20T18:53:00.000Z","reason":"cron"}
+[SCHEDULER][2026-03-20T18:54:04.090Z][tick-finished] {"dueRooms":0,"lifecycleUpdates":0,"minuteKey":"2026-03-20T18:54:00.000Z","reason":"cron"}
+[SCHEDULER][2026-03-20T18:55:03.625Z][tick-finished] {"dueRooms":0,"lifecycleUpdates":0,"minuteKey":"2026-03-20T18:55:00.000Z","reason":"cron"}
+[SCHEDULER][2026-03-20T18:56:03.841Z][tick-finished] {"dueRooms":0,"lifecycleUpdates":0,"minuteKey":"2026-03-20T18:56:00.000Z","reason":"cron"}
+[SCHEDULER][2026-03-20T18:57:03.416Z][tick-finished] {"dueRooms":0,"lifecycleUpdates":0,"minuteKey":"2026-03-20T18:57:00.000Z","reason":"cron"}
+[SCHEDULER][2026-03-20T18:58:03.803Z][tick-finished] {"dueRooms":0,"lifecycleUpdates":0,"minuteKey":"2026-03-20T18:58:00.000Z","reason":"cron"}
+[SCHEDULER][2026-03-20T18:59:04.180Z][tick-finished] {"dueRooms":0,"lifecycleUpdates":0,"minuteKey":"2026-03-20T18:59:00.000Z","reason":"cron"}
+[SCHEDULER][2026-03-20T19:00:03.743Z][tick-finished] {"dueRooms":0,"lifecycleUpdates":0,"minuteKey":"2026-03-20T19:00:00.000Z","reason":"cron"}
+[SCHEDULER][2026-03-20T19:01:03.733Z][tick-finished] {"dueRooms":0,"lifecycleUpdates":0,"minuteKey":"2026-03-20T19:01:00.000Z","reason":"cron"}
+[SCHEDULER][2026-03-20T19:02:03.769Z][tick-finished] {"dueRooms":0,"lifecycleUpdates":0,"minuteKey":"2026-03-20T19:02:00.000Z","reason":"cron"}
+[SCHEDULER][2026-03-20T19:03:04.168Z][tick-finished] {"dueRooms":0,"lifecycleUpdates":0,"minuteKey":"2026-03-20T19:03:00.000Z","reason":"cron"}
+[SCHEDULER][2026-03-20T19:04:03.778Z][tick-finished] {"dueRooms":0,"lifecycleUpdates":0,"minuteKey":"2026-03-20T19:04:00.000Z","reason":"cron"}
+[SCHEDULER][2026-03-20T19:05:04.546Z][tick-finished] {"dueRooms":0,"lifecycleUpdates":0,"minuteKey":"2026-03-20T19:05:00.000Z","reason":"cron"}
+[SCHEDULER][2026-03-20T19:06:04.236Z][tick-finished] {"dueRooms":0,"lifecycleUpdates":0,"minuteKey":"2026-03-20T19:06:00.000Z","reason":"cron"}
+[SCHEDULER][2026-03-20T19:07:04.258Z][tick-finished] {"dueRooms":0,"lifecycleUpdates":0,"minuteKey":"2026-03-20T19:07:00.000Z","reason":"cron"}
+[SCHEDULER][2026-03-20T19:08:04.140Z][tick-finished] {"dueRooms":0,"lifecycleUpdates":0,"minuteKey":"2026-03-20T19:08:00.000Z","reason":"cron"}
+[SCHEDULER][2026-03-20T19:09:04.396Z][tick-finished] {"dueRooms":0,"lifecycleUpdates":0,"minuteKey":"2026-03-20T19:09:00.000Z","reason":"cron"}
+[SCHEDULER][2026-03-20T19:10:04.509Z][tick-finished] {"dueRooms":0,"lifecycleUpdates":0,"minuteKey":"2026-03-20T19:10:00.000Z","reason":"cron"}
+[SCHEDULER][2026-03-20T19:11:04.617Z][tick-finished] {"dueRooms":0,"lifecycleUpdates":0,"minuteKey":"2026-03-20T19:11:00.000Z","reason":"cron"}
+[SCHEDULER][2026-03-20T19:12:04.396Z][tick-finished] {"dueRooms":0,"lifecycleUpdates":0,"minuteKey":"2026-03-20T19:12:00.000Z","reason":"cron"}
+[SCHEDULER][2026-03-20T19:13:04.513Z][tick-finished] {"dueRooms":0,"lifecycleUpdates":0,"minuteKey":"2026-03-20T19:13:00.000Z","reason":"cron"}
+[SCHEDULER][2026-03-20T19:14:05.667Z][tick-finished] {"dueRooms":0,"lifecycleUpdates":0,"minuteKey":"2026-03-20T19:14:00.000Z","reason":"cron"}
+[SCHEDULER][2026-03-20T19:15:04.561Z][tick-finished] {"dueRooms":0,"lifecycleUpdates":0,"minuteKey":"2026-03-20T19:15:00.000Z","reason":"cron"}
+[SCHEDULER][2026-03-20T19:16:04.317Z][tick-finished] {"dueRooms":0,"lifecycleUpdates":0,"minuteKey":"2026-03-20T19:16:00.000Z","reason":"cron"}
+[SCHEDULER][2026-03-20T19:17:04.545Z][tick-finished] {"dueRooms":0,"lifecycleUpdates":0,"minuteKey":"2026-03-20T19:17:00.000Z","reason":"cron"}
+ GET /dashboard 200 in 8.0s (compile: 9ms, proxy.ts: 1865ms, render: 6.1s)
+ GET / 200 in 1665ms (compile: 58ms, proxy.ts: 15ms, render: 1592ms)
+[SCHEDULER][2026-03-20T19:18:03.717Z][tick-finished] {"dueRooms":0,"lifecycleUpdates":0,"minuteKey":"2026-03-20T19:18:00.000Z","reason":"cron"}
