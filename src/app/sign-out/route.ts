@@ -12,5 +12,5 @@ export async function POST(request: Request) {
   const url = new URL(request.url);
   const redirectUrl = url.searchParams.get("redirect_url") ?? "/packages";
 
-  return NextResponse.redirect(new URL(redirectUrl, url.origin));
+  return NextResponse.redirect(new URL(redirectUrl, url.origin), 303);
 }
