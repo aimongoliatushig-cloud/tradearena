@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ClerkProvider } from "@clerk/nextjs";
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { Analytics } from "@vercel/analytics/react";
 import { Manrope } from "next/font/google";
@@ -40,6 +41,7 @@ export default async function RootLayout({
   return (
     <html lang="mn" className={`${manrope.variable} dark`}>
       <body className="antialiased">
+        <ClerkProvider>
         <div className="flex min-h-screen flex-col">
           <header className="border-b border-white/10 bg-[#071019]/90 backdrop-blur">
             <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
@@ -63,6 +65,7 @@ export default async function RootLayout({
         </div>
         <Toaster theme="dark" richColors position="top-right" />
         <Analytics />
+        </ClerkProvider>
       </body>
     </html>
   );

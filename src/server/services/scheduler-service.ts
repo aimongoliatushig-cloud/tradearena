@@ -3,7 +3,7 @@ import { FetchSource, JobStatus, JobType, RoomLifecycleStatus } from "@prisma/cl
 import { db } from "@/lib/db";
 import { dayjs } from "@/lib/dayjs";
 import { evaluateUnderfilledPackageRooms } from "@/server/services/enrollment-service";
-import { sendRoomPerformanceReportIfDue } from "@/server/services/notification-service";
+import { sendBlogAnalyticsReportIfDue, sendRoomPerformanceReportIfDue } from "@/server/services/notification-service";
 import { getDefaultScheduleConfig } from "@/server/services/settings-service";
 import { refreshRoomStats, syncRoomLifecycleStatus } from "@/server/services/trader-service";
 
@@ -143,6 +143,8 @@ export async function runSchedulerTick(reason = "worker") {
   for (const room of reportDueRooms) {
     await sendRoomPerformanceReportIfDue(room.id, minuteKey, room.timezone);
   }
+
+  await sendBlogAnalyticsReportIfDue(minuteKey, defaults.timezone);
 
   return {
     lifecycleUpdates,

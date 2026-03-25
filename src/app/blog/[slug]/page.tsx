@@ -6,10 +6,13 @@ import { auth } from "@clerk/nextjs/server";
 import { notFound } from "next/navigation";
 
 import { PublicShell } from "@/components/layout/public-shell";
+import { BlogAnalyticsPixel } from "@/components/shared/blog-analytics-pixel";
 import { ArticleEndPopup } from "@/components/shared/article-end-popup";
+import { BlogReadTracker } from "@/components/shared/blog-read-tracker";
 import { BlogMarkdown } from "@/components/shared/blog-markdown";
 import { ClerkPromptActions } from "@/components/shared/clerk-auth-controls";
 import { Button } from "@/components/ui/button";
+import { BLOG_ANALYTICS_EVENT_TYPE } from "@/lib/blog-analytics";
 import { buildExcerptFromMarkdown, getPreviewBlocks, parseMarkdownBlocks } from "@/lib/blog";
 import { formatDate } from "@/lib/format";
 import { getPublishedBlogPostBySlug } from "@/server/services/blog-service";
@@ -58,6 +61,8 @@ export default async function BlogDetailPage({
         </div>
 
         <div className="glass-panel p-6 sm:p-8">
+          <BlogAnalyticsPixel postId={post.id} eventType={BLOG_ANALYTICS_EVENT_TYPE.POST_VIEW} />
+          {locked ? <BlogAnalyticsPixel postId={post.id} eventType={BLOG_ANALYTICS_EVENT_TYPE.PREVIEW_VIEW} /> : null}
           <BlogMarkdown blocks={visibleBlocks} />
 
           {locked ? (
@@ -82,7 +87,10 @@ export default async function BlogDetailPage({
             </div>
           ) : null}
 
-          {!locked && post.showEndPopup && post.popup ? <ArticleEndPopup popup={post.popup} /> : null}
+          {!locked && post.showEndPopup && post.popup ? (
+            <ArticleEndPopup popup={post.popup} popupId={post.popup.id} postId={post.id} />
+          ) : null}
+          {!locked ? <BlogReadTracker postId={post.id} /> : null}
         </div>
 
         <div className="flex justify-start">

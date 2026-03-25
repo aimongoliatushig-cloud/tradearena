@@ -317,10 +317,14 @@ export async function saveSettingsAction(formData: FormData) {
       coachingCtaUrl: formData.get("coachingCtaUrl"),
       supportCtaLabel: formData.get("supportCtaLabel"),
       supportCtaUrl: formData.get("supportCtaUrl"),
+      blogAnalyticsReportEmails: formData.get("blogAnalyticsReportEmails"),
+      blogAnalyticsReportFrequency: formData.get("blogAnalyticsReportFrequency"),
+      notifyOnNewUserSignup: toBoolean(formData.get("notifyOnNewUserSignup")),
+      notifyOnNewProgramRegistration: toBoolean(formData.get("notifyOnNewProgramRegistration")),
     });
 
     await saveSettings(parsed);
-    revalidatePaths(["/admin/settings", "/dashboard", "/checkout"]);
+    revalidatePaths(["/admin/settings", "/admin/blog/analytics", "/dashboard", "/checkout"]);
   } catch (error) {
     redirectWithMessage(returnPath, "error", getUserFacingErrorMessage(error, "Failed to save settings."));
   }

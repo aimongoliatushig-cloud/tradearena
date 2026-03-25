@@ -25,7 +25,12 @@ export default async function AdminBlogPostsPage({
           <h1 className="text-3xl font-semibold text-white">Блог нийтлэлүүд</h1>
           <p className="mt-2 text-sm text-white/60">Нийтлэл үүсгэх, нийтлэх, popup болон ангилал холбох удирдлага.</p>
         </div>
-        <Button render={<Link href="/admin/blog/posts/new" />}>Шинэ нийтлэл</Button>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" render={<Link href="/admin/blog/analytics" />}>
+            Analytics
+          </Button>
+          <Button render={<Link href="/admin/blog/posts/new" />}>Шинэ нийтлэл</Button>
+        </div>
       </div>
 
       <FlashMessage
@@ -55,6 +60,9 @@ export default async function AdminBlogPostsPage({
             <div className="flex flex-wrap gap-2">
               <Button variant="outline" render={<Link href={`/admin/blog/posts/${post.id}`} />}>
                 Засах
+              </Button>
+              <Button variant="outline" render={<Link href={`/admin/blog/analytics?range=weekly&postId=${post.id}`} />}>
+                Analytics
               </Button>
               {post.status === "PUBLISHED" ? (
                 <Button variant="secondary" render={<Link href={`/blog/${post.slug}`} />}>

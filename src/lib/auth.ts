@@ -1,5 +1,5 @@
 import type { AdminUser } from "@prisma/client";
-import { auth, currentUser } from "@clerk/nextjs/server";
+import { auth, clerkClient, currentUser } from "@clerk/nextjs/server";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
@@ -27,6 +27,17 @@ type AdminRequestContext = {
   ipAddress: string | null;
   path: string;
   userAgent: string | null;
+};
+
+type ClerkAdminUser = {
+  firstName: string | null;
+  lastName: string | null;
+  primaryEmailAddress: {
+    emailAddress: string;
+  } | null;
+  publicMetadata: unknown;
+  twoFactorEnabled: boolean;
+  username: string | null;
 };
 
 export type AdminAccessState =
@@ -58,6 +69,25 @@ function isAdminIpAllowed(ipAddress: string | null) {
   }
 
   return allowlist.includes(ipAddress);
+}
+
+function normalizeEmailAddress(value?: string | null) {
+  const normalized = value?.trim().toLowerCase();
+  return normalized ? normalized : null;
+}
+
+function isConfiguredAdminEmail(email: string | null) {
+  return Boolean(email && env.ADMIN_EMAIL && email === env.ADMIN_EMAIL);
+}
+
+async function findAdminUserByEmail(email: string | null) {
+  if (!email) {
+    return null;
+  }
+
+  return db.adminUser.findUnique({
+    where: { email },
+  });
 }
 
 async function getAdminRequestContext(pathOverride?: string, requestHeaders?: Headers): Promise<AdminRequestContext> {
@@ -165,8 +195,28 @@ async function createDeniedAdminAccessState(input: {
   };
 }
 
-async function syncAdminProfile(user: Awaited<ReturnType<typeof currentUser>>) {
-  const email = user?.primaryEmailAddress?.emailAddress?.trim().toLowerCase() ?? null;
+async function loadClerkAdminUser(userId: string): Promise<ClerkAdminUser | null> {
+  try {
+    const user = await currentUser();
+
+    if (user) {
+      return user;
+    }
+  } catch (error) {
+    console.error("[admin-access-current-user-failed]", error);
+  }
+
+  try {
+    const client = await clerkClient();
+    return await client.users.getUser(userId);
+  } catch (error) {
+    console.error("[admin-access-clerk-user-failed]", error);
+    return null;
+  }
+}
+
+async function syncAdminProfile(user: ClerkAdminUser | null) {
+  const email = normalizeEmailAddress(user?.primaryEmailAddress?.emailAddress);
 
   if (!email) {
     return null;
@@ -214,11 +264,14 @@ export async function getAdminAccessState(options?: {
     });
   }
 
-  const user = await currentUser();
-  const email = user?.primaryEmailAddress?.emailAddress ?? null;
+  const user = await loadClerkAdminUser(userId);
+  const email = normalizeEmailAddress(user?.primaryEmailAddress?.emailAddress);
   const role = getPublicMetadataRole(user?.publicMetadata);
+  const hasClerkAdminRole = Boolean(user && hasAdminRole(user.publicMetadata));
+  const adminUserByEmail = await findAdminUserByEmail(email);
+  const hasEmailAdminAccess = isConfiguredAdminEmail(email) || Boolean(adminUserByEmail);
 
-  if (!user || !hasAdminRole(user.publicMetadata)) {
+  if (!user || (!hasClerkAdminRole && !hasEmailAdminAccess)) {
     return createDeniedAdminAccessState({
       context,
       email,
@@ -256,7 +309,7 @@ export async function getAdminAccessState(options?: {
   return {
     adminUser,
     allowed: true,
-    role: role ?? "admin",
+    role: role ?? (isConfiguredAdminEmail(email) ? "configured_admin_email" : adminUserByEmail ? "admin_user_record" : "admin"),
   };
 }
 

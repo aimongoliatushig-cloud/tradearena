@@ -1,6 +1,7 @@
 import { ApplicantStatus, NotificationChannel, NotificationStatus, Prisma, type NotificationKind } from "@prisma/client";
 import nodemailer, { type Transporter } from "nodemailer";
 
+import { BLOG_ANALYTICS_REPORT_SEND_HOUR } from "@/lib/blog-analytics";
 import { db } from "@/lib/db";
 import { dayjs } from "@/lib/dayjs";
 import { env } from "@/lib/env";
@@ -9,7 +10,13 @@ import { leaderboardTraderOrderBy } from "@/lib/leaderboard";
 import { accountSizeLabels, stepLabels } from "@/lib/labels";
 import { NOTIFICATION_KIND } from "@/lib/prisma-enums";
 import { formatUsd } from "@/lib/pricing";
-import { getPaymentDetailsConfig, getRoomReadyEmailConfig } from "@/server/services/settings-service";
+import { buildBlogAnalyticsEmailReport } from "@/server/services/blog-analytics-service";
+import {
+  getBlogAnalyticsReportConfig,
+  getPaymentDetailsConfig,
+  getRoomReadyEmailConfig,
+  getTeamAlertNotificationConfig,
+} from "@/server/services/settings-service";
 
 const ROOM_EMAIL_RECIPIENT_STATUSES = [
   ApplicantStatus.PENDING,
@@ -19,9 +26,9 @@ const ROOM_EMAIL_RECIPIENT_STATUSES = [
   ApplicantStatus.JOINED,
 ] as const;
 
-const TEAM_ALERT_RECIPIENTS = ["teamfirewfg@gmail.com", "aimongoliatushig@gmail.com"] as const;
 const NEW_USER_ALERT_WINDOW_MS = 2 * 60 * 60 * 1000;
 const PERFORMANCE_REPORT_TIMES = new Set(["09:00", "21:00"]);
+const BLOG_ANALYTICS_REPORT_TIME = `${BLOG_ANALYTICS_REPORT_SEND_HOUR.toString().padStart(2, "0")}:00`;
 
 function canSendEmail() {
   return Boolean(env.SMTP_HOST && env.SMTP_PORT && env.SMTP_USER && env.SMTP_PASS);
@@ -51,6 +58,10 @@ function buildInternalAlertKey(type: string, uniqueId: string) {
   return `internal_alert:${type}:${uniqueId}`;
 }
 
+function buildBlogAnalyticsReportKey(frequency: "DAILY" | "WEEKLY", periodKey: string) {
+  return `blog_analytics_report:${frequency}:${periodKey}`;
+}
+
 async function reserveInternalAlert(key: string, value: Record<string, unknown>) {
   try {
     await db.appSetting.create({
@@ -77,9 +88,14 @@ async function sendTeamAlertEmails(input: {
   roomId?: string;
   subject: string;
 }) {
+  const recipients = (await getBlogAnalyticsReportConfig()).emails;
+  if (!recipients.length) {
+    return false;
+  }
+
   const transporter = createTransporter();
 
-  for (const recipient of TEAM_ALERT_RECIPIENTS) {
+  for (const recipient of recipients) {
     await sendLoggedEmail({
       applicantId: input.applicantId,
       roomId: input.roomId,
@@ -90,6 +106,8 @@ async function sendTeamAlertEmails(input: {
       transporter,
     });
   }
+
+  return true;
 }
 
 async function sendLoggedEmail(input: {
@@ -219,6 +237,11 @@ export async function notifyTeamAboutNewUserSignup(input: {
   email?: string | null;
   name?: string | null;
 }) {
+  const alertConfig = await getTeamAlertNotificationConfig();
+  if (!alertConfig.notifyOnNewUserSignup) {
+    return false;
+  }
+
   const createdAt =
     input.createdAt instanceof Date
       ? input.createdAt
@@ -265,6 +288,11 @@ export async function notifyTeamAboutProgramSignup(input: {
   packageName: string;
   packageSlug: string;
 }) {
+  const alertConfig = await getTeamAlertNotificationConfig();
+  if (!alertConfig.notifyOnNewProgramRegistration) {
+    return false;
+  }
+
   const markerKey = buildInternalAlertKey("program-signup", input.enrollmentId);
   const reserved = await reserveInternalAlert(markerKey, {
     clerkUserId: input.clerkUserId,
@@ -460,6 +488,51 @@ export async function sendRoomPerformanceReportIfDue(roomId: string, minuteKey: 
         "",
         "TradeArena team",
       ].join("\n"),
+      transporter,
+    });
+  }
+
+  return true;
+}
+
+export async function sendBlogAnalyticsReportIfDue(minuteKey: Date, timezone: string) {
+  const localMinute = dayjs(minuteKey).tz(timezone);
+
+  if (localMinute.format("HH:mm") !== BLOG_ANALYTICS_REPORT_TIME) {
+    return false;
+  }
+
+  const config = await getBlogAnalyticsReportConfig();
+  if (config.frequency === "OFF" || !config.emails.length) {
+    return false;
+  }
+
+  if (config.frequency === "WEEKLY" && localMinute.day() !== 1) {
+    return false;
+  }
+
+  const report = await buildBlogAnalyticsEmailReport(config.frequency, timezone, minuteKey);
+  const markerKey = buildBlogAnalyticsReportKey(config.frequency, report.periodKey);
+  const reserved = await reserveInternalAlert(markerKey, {
+    frequency: config.frequency,
+    periodKey: report.periodKey,
+    recipients: config.emails,
+    timezone,
+    reservedAt: new Date().toISOString(),
+  });
+
+  if (!reserved) {
+    return false;
+  }
+
+  const transporter = createTransporter();
+
+  for (const recipient of config.emails) {
+    await sendLoggedEmail({
+      kind: NOTIFICATION_KIND.GENERAL_UPDATE,
+      recipient,
+      subject: report.subject,
+      message: report.message,
       transporter,
     });
   }

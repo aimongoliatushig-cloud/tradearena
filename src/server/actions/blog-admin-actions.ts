@@ -21,8 +21,16 @@ function toBoolean(value: FormDataEntryValue | null) {
 }
 
 function buildRedirect(pathname: string, type: "success" | "error", message: string) {
-  const params = new URLSearchParams({ [type]: message });
-  return `${pathname}?${params.toString()}`;
+  const [pathWithSearch, hash = ""] = pathname.split("#", 2);
+  const [basePath, existingSearch = ""] = pathWithSearch.split("?", 2);
+  const params = new URLSearchParams(existingSearch);
+  params.delete("success");
+  params.delete("error");
+  params.set(type, message);
+
+  const query = params.toString();
+  const nextPath = query ? `${basePath}?${query}` : basePath;
+  return hash ? `${nextPath}#${hash}` : nextPath;
 }
 
 function redirectWithMessage(pathname: string, type: "success" | "error", message: string): never {
@@ -139,7 +147,7 @@ export async function deleteBlogPopupAction(formData: FormData) {
 }
 
 export async function saveBlogPostAction(formData: FormData) {
-  const returnPath = String(formData.get("returnPath") || "/admin/blog/posts");
+  let returnPath = String(formData.get("returnPath") || "/admin/blog/posts");
   const existingImageUrl = String(formData.get("existingImageUrl") || "");
   const upload = formData.get("coverImageFile");
   let imageUrl = existingImageUrl || undefined;
@@ -167,6 +175,7 @@ export async function saveBlogPostAction(formData: FormData) {
     });
 
     const post = await upsertBlogPost(parsed);
+    returnPath = parsed.id ? `/admin/blog/posts/${post.id}` : "/admin/blog/posts";
     revalidateBlogPaths(post.slug);
   } catch (error) {
     if (imageUrl && imageUrl !== existingImageUrl) {

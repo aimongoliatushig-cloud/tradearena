@@ -5,6 +5,10 @@ const envSchema = z.object({
   DATABASE_URL: z.string().min(1),
   APP_BASE_URL: z.string().url().default("http://localhost:3000"),
   APP_TIMEZONE: z.string().default("Asia/Ulaanbaatar"),
+  ADMIN_EMAIL: z
+    .string()
+    .default("")
+    .transform((value) => value.trim().toLowerCase()),
   SCHEDULER_ENABLED: z
     .enum(["true", "false"])
     .default("true")

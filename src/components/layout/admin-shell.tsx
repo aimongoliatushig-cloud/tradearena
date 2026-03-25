@@ -3,6 +3,7 @@ import { BarChart3, BookOpenText, Boxes, DatabaseZap, GraduationCap, LayoutDashb
 import type { ReactNode } from "react";
 import type { AdminUser } from "@prisma/client";
 
+import { ClerkSignOutButton } from "@/components/shared/clerk-sign-out-button";
 import { Button } from "@/components/ui/button";
 
 const links = [
@@ -18,6 +19,7 @@ const links = [
   { href: "/admin/applicants", label: "Хуучин өргөдөл", icon: Users },
   { href: "/admin/traders", label: "Трейдерүүд", icon: DatabaseZap },
   { href: "/admin/logs", label: "Логууд", icon: ListChecks },
+  { href: "/admin/blog/analytics", label: "Blog analytics", icon: BarChart3 },
   { href: "/admin/settings", label: "Тохиргоо", icon: Settings },
 ];
 
@@ -43,12 +45,12 @@ export function AdminShell({ user, children }: { user: AdminUser; children: Reac
           ))}
         </nav>
 
-        <form action="/sign-out" method="post" className="mt-8">
-          <Button type="submit" variant="outline" className="w-full justify-start border-white/8 bg-white/[0.02]">
+        <ClerkSignOutButton>
+          <Button type="button" variant="outline" className="mt-8 w-full justify-start border-white/8 bg-white/[0.02]">
             <LogOut className="size-4" />
             Гарах
           </Button>
-        </form>
+        </ClerkSignOutButton>
       </aside>
       <div className="min-w-0">
         <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">{children}</div>

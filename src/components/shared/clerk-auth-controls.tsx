@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { ClerkSignOutButton } from "@/components/shared/clerk-sign-out-button";
 import { buttonVariants } from "@/lib/button-variants";
 import { cn } from "@/lib/utils";
 
@@ -70,14 +71,14 @@ export function ClerkHeaderActions({
           </div>
         </Link>
 
-        <form action="/sign-out" method="post">
+        <ClerkSignOutButton>
           <button
-            type="submit"
+            type="button"
             className="inline-flex h-10 items-center justify-center rounded-xl border border-white/12 px-4 text-sm text-white/70 transition hover:bg-white/[0.05] hover:text-white"
           >
             Гарах
           </button>
-        </form>
+        </ClerkSignOutButton>
       </div>
     );
   }

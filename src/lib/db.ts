@@ -24,6 +24,7 @@ function hasRequiredDelegates(client?: PrismaClient) {
   }
 
   const runtimeClient = client as PrismaClient & {
+    blogPostAnalyticsEvent?: unknown;
     packageTier?: unknown;
     paymentRecord?: unknown;
     packageEnrollment?: unknown;
@@ -34,6 +35,7 @@ function hasRequiredDelegates(client?: PrismaClient) {
   };
 
   return [
+    runtimeClient.blogPostAnalyticsEvent,
     runtimeClient.packageTier,
     runtimeClient.paymentRecord,
     runtimeClient.packageEnrollment,
@@ -44,20 +46,24 @@ function hasRequiredDelegates(client?: PrismaClient) {
   ].every(Boolean);
 }
 
-let prismaClient: PrismaClient;
-const existingClient = globalForPrisma.prisma as PrismaClient | undefined;
+function getOrCreatePrismaClient(): PrismaClient {
+  const existingClient = globalForPrisma.prisma;
 
-if (existingClient && hasRequiredDelegates(existingClient)) {
-  prismaClient = existingClient;
-} else {
+  if (hasRequiredDelegates(existingClient)) {
+    return existingClient!;
+  }
+
   existingClient?.$disconnect().catch(() => undefined);
-  prismaClient = createPrismaClient();
+  const nextClient = createPrismaClient();
+  globalForPrisma.prisma = nextClient;
+  return nextClient;
 }
 
-globalForPrisma.prisma = prismaClient;
+export const db = new Proxy({} as PrismaClient, {
+  get(_target, property) {
+    const client = getOrCreatePrismaClient();
+    const value = Reflect.get(client, property);
 
-export const db = prismaClient;
-
-if (process.env.NODE_ENV !== "production") {
-  globalForPrisma.prisma = db;
-}
+    return typeof value === "function" ? value.bind(client) : value;
+  },
+}) as PrismaClient;

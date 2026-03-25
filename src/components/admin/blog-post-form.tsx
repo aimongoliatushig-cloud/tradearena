@@ -39,13 +39,15 @@ export function BlogPostForm({
               <input
                 name="title"
                 defaultValue={post?.title}
+                required
+                minLength={3}
                 className="flex h-11 w-full rounded-2xl border border-white/12 bg-slate-950/60 px-4 text-white outline-none"
               />
             </Field>
             <Field label="Төлөв">
               <select
                 name="status"
-                defaultValue={post?.status ?? "DRAFT"}
+                defaultValue={post?.status ?? "PUBLISHED"}
                 className="flex h-11 w-full rounded-2xl border border-white/12 bg-slate-950/60 px-4 text-white outline-none"
               >
                 {BLOG_POST_STATUS_OPTIONS.map((status) => (
@@ -54,6 +56,7 @@ export function BlogPostForm({
                   </option>
                 ))}
               </select>
+              <p className="text-xs text-white/45">New posts default to Published. Switch to Draft if you do not want them live yet.</p>
             </Field>
           </div>
 
@@ -62,6 +65,7 @@ export function BlogPostForm({
               <select
                 name="categoryId"
                 defaultValue={post?.categoryId ?? categories[0]?.id ?? ""}
+                required
                 className="flex h-11 w-full rounded-2xl border border-white/12 bg-slate-950/60 px-4 text-white outline-none"
               >
                 {categories.map((category) => (
@@ -110,8 +114,10 @@ export function BlogPostForm({
                 type="file"
                 name="coverImageFile"
                 accept="image/png,image/jpeg,image/webp,image/gif"
+                required={!post?.coverImageUrl}
                 className="block w-full text-sm text-white/70 file:mr-4 file:rounded-xl file:border-0 file:bg-white/10 file:px-4 file:py-2 file:text-white"
               />
+              <p className="text-xs text-white/45">Cover image is required for new blog posts.</p>
             </div>
           </Field>
 
@@ -120,6 +126,8 @@ export function BlogPostForm({
               name="bodyMarkdown"
               defaultValue={post?.bodyMarkdown}
               rows={18}
+              required
+              minLength={30}
               className="w-full rounded-2xl border border-white/12 bg-slate-950/60 px-4 py-3 font-mono text-sm text-white outline-none"
             />
           </Field>

@@ -6,6 +6,7 @@ import {
 } from "@prisma/client";
 import { z } from "zod";
 
+import { BLOG_ANALYTICS_REPORT_FREQUENCY_OPTIONS } from "@/lib/blog-analytics";
 import { ACCOUNT_SIZE_OPTIONS, ROOM_STATUS_OPTIONS } from "@/lib/prisma-enums";
 
 const ftmoUrlSchema = z
@@ -89,20 +90,56 @@ export const invitationSchema = z.object({
   extraInstructions: z.string().trim().min(5),
 });
 
-export const settingsSchema = z.object({
-  defaultScheduleInput: z.string().trim().min(4),
-  timezone: z.string().trim().min(2),
-  roomReadySubject: z.string().trim().min(3),
-  roomReadyMessage: z.string().trim().min(10),
-  bankName: z.string().trim().min(2),
-  accountHolder: z.string().trim().min(2),
-  accountNumber: z.string().trim().min(4),
-  transactionValueHint: z.string().trim().min(4),
-  coachingCtaLabel: z.string().trim().min(2),
-  coachingCtaUrl: z.string().trim().url("Коучингийн холбоос зөв биш байна."),
-  supportCtaLabel: z.string().trim().min(2),
-  supportCtaUrl: z.string().trim().url("Дэмжлэгийн холбоос зөв биш байна."),
-});
+const emailAddressSchema = z.string().email();
+
+function parseEmailListInput(value: string) {
+  return Array.from(
+    new Set(
+      value
+        .split(",")
+        .map((item) => item.trim().toLowerCase())
+        .filter(Boolean),
+    ),
+  );
+}
+
+export const settingsSchema = z
+  .object({
+    defaultScheduleInput: z.string().trim().min(4),
+    timezone: z.string().trim().min(2),
+    roomReadySubject: z.string().trim().min(3),
+    roomReadyMessage: z.string().trim().min(10),
+    bankName: z.string().trim().min(2),
+    accountHolder: z.string().trim().min(2),
+    accountNumber: z.string().trim().min(4),
+    transactionValueHint: z.string().trim().min(4),
+    coachingCtaLabel: z.string().trim().min(2),
+    coachingCtaUrl: z.string().trim().url("Коучингийн холбоос зөв биш байна."),
+    supportCtaLabel: z.string().trim().min(2),
+    supportCtaUrl: z.string().trim().url("Дэмжлэгийн холбоос зөв биш байна."),
+    blogAnalyticsReportEmails: z
+      .string()
+      .trim()
+      .transform(parseEmailListInput)
+      .refine((emails) => emails.every((email) => emailAddressSchema.safeParse(email).success), "Enter valid report emails separated by commas."),
+    blogAnalyticsReportFrequency: z.enum(BLOG_ANALYTICS_REPORT_FREQUENCY_OPTIONS),
+    notifyOnNewUserSignup: z.boolean().default(false),
+    notifyOnNewProgramRegistration: z.boolean().default(false),
+  })
+  .superRefine((value, ctx) => {
+    if (
+      (value.blogAnalyticsReportFrequency !== "OFF" ||
+        value.notifyOnNewUserSignup ||
+        value.notifyOnNewProgramRegistration) &&
+      value.blogAnalyticsReportEmails.length === 0
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Add at least one blog report email or turn the related alerts off.",
+        path: ["blogAnalyticsReportEmails"],
+      });
+    }
+  });
 
 export const blogCategorySchema = z.object({
   id: z.string().cuid().optional(),

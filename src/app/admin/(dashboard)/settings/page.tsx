@@ -2,13 +2,16 @@ export const dynamic = "force-dynamic";
 
 import { FlashMessage } from "@/components/shared/flash-message";
 import { SubmitButton } from "@/components/forms/submit-button";
+import { BLOG_ANALYTICS_REPORT_FREQUENCY_LABELS, BLOG_ANALYTICS_REPORT_FREQUENCY_OPTIONS } from "@/lib/blog-analytics";
 import { env } from "@/lib/env";
 import { saveSettingsAction } from "@/server/actions/admin-actions";
 import {
+  getBlogAnalyticsReportConfig,
   getDefaultScheduleConfig,
   getMemberExperienceConfig,
   getPaymentDetailsConfig,
   getRoomReadyEmailConfig,
+  getTeamAlertNotificationConfig,
 } from "@/server/services/settings-service";
 
 export default async function AdminSettingsPage({
@@ -17,11 +20,13 @@ export default async function AdminSettingsPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const flash = await searchParams;
-  const [schedule, roomReadyEmail, paymentDetails, memberExperience] = await Promise.all([
+  const [schedule, roomReadyEmail, paymentDetails, memberExperience, blogAnalyticsReport, teamAlertNotifications] = await Promise.all([
     getDefaultScheduleConfig(),
     getRoomReadyEmailConfig(),
     getPaymentDetailsConfig(),
     getMemberExperienceConfig(),
+    getBlogAnalyticsReportConfig(),
+    getTeamAlertNotificationConfig(),
   ]);
 
   return (
@@ -85,6 +90,62 @@ export default async function AdminSettingsPage({
             <Field label="Дэмжлэгийн холбоос">
               <input name="supportCtaUrl" defaultValue={memberExperience.supportCtaUrl} className={inputClassName} />
             </Field>
+          </div>
+
+          <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.03] p-5">
+            <div className="mb-4">
+              <h2 className="text-lg font-semibold text-white">Blog Analytics Reports</h2>
+              <p className="mt-2 text-sm text-white/55">
+                Send scheduled blog read reports to the team inbox. Reports go out at 09:00 in the configured timezone.
+              </p>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-[minmax(0,2fr)_240px]">
+              <Field label="Report emails">
+                <input
+                  name="blogAnalyticsReportEmails"
+                  defaultValue={blogAnalyticsReport.emailsInput}
+                  placeholder="team@example.com, owner@example.com"
+                  className={inputClassName}
+                />
+              </Field>
+              <Field label="Frequency">
+                <select
+                  name="blogAnalyticsReportFrequency"
+                  defaultValue={blogAnalyticsReport.frequency}
+                  className={inputClassName}
+                >
+                  {BLOG_ANALYTICS_REPORT_FREQUENCY_OPTIONS.map((option) => (
+                    <option key={option} value={option}>
+                      {BLOG_ANALYTICS_REPORT_FREQUENCY_LABELS[option]}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            </div>
+
+            <div className="mt-5 grid gap-3 md:grid-cols-2">
+              <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-white/70">
+                <input
+                  type="checkbox"
+                  name="notifyOnNewUserSignup"
+                  defaultChecked={teamAlertNotifications.notifyOnNewUserSignup}
+                />
+                Send email when a new user signs up
+              </label>
+              <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-white/70">
+                <input
+                  type="checkbox"
+                  name="notifyOnNewProgramRegistration"
+                  defaultChecked={teamAlertNotifications.notifyOnNewProgramRegistration}
+                />
+                Send email when a new program registration starts
+              </label>
+            </div>
+
+            <p className="mt-3 text-xs text-white/45">
+              These alerts use the same recipient list as the Blog Analytics report emails above.
+            </p>
           </div>
 
           <SubmitButton>Тохиргоо хадгалах</SubmitButton>

@@ -1,7 +1,24 @@
 import { DEFAULT_UPDATE_TIMES } from "@/lib/constants";
+import { BLOG_ANALYTICS_REPORT_FREQUENCY_OPTIONS, type BlogAnalyticsReportFrequency } from "@/lib/blog-analytics";
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
 import { DEFAULT_PAYMENT_DETAILS } from "@/lib/pricing";
+
+function parseReportEmails(value?: string | string[] | null) {
+  if (!value) {
+    return [];
+  }
+
+  const source = Array.isArray(value) ? value.join(",") : value;
+  return Array.from(
+    new Set(
+      source
+        .split(",")
+        .map((item) => item.trim().toLowerCase())
+        .filter(Boolean),
+    ),
+  );
+}
 
 export async function getDefaultScheduleConfig() {
   const setting = await db.appSetting.findUnique({
@@ -90,6 +107,47 @@ export async function getMemberExperienceConfig() {
   };
 }
 
+export async function getBlogAnalyticsReportConfig() {
+  const setting = await db.appSetting.findUnique({
+    where: { key: "blog_analytics_report" },
+  });
+
+  const value =
+    (setting?.value as {
+      emails?: string[];
+      frequency?: BlogAnalyticsReportFrequency;
+    } | null) ?? null;
+
+  const frequency = BLOG_ANALYTICS_REPORT_FREQUENCY_OPTIONS.includes(value?.frequency ?? "OFF")
+    ? (value?.frequency ?? "OFF")
+    : "OFF";
+  const fallbackEmails = parseReportEmails(env.ADMIN_EMAIL);
+  const emails = value?.emails?.length ? parseReportEmails(value.emails) : fallbackEmails;
+
+  return {
+    emails,
+    emailsInput: emails.join(", "),
+    frequency,
+  };
+}
+
+export async function getTeamAlertNotificationConfig() {
+  const setting = await db.appSetting.findUnique({
+    where: { key: "team_alert_notifications" },
+  });
+
+  const value =
+    (setting?.value as {
+      notifyOnNewProgramRegistration?: boolean;
+      notifyOnNewUserSignup?: boolean;
+    } | null) ?? null;
+
+  return {
+    notifyOnNewUserSignup: Boolean(value?.notifyOnNewUserSignup),
+    notifyOnNewProgramRegistration: Boolean(value?.notifyOnNewProgramRegistration),
+  };
+}
+
 export async function saveSettings(input: {
   defaultScheduleInput: string;
   timezone: string;
@@ -103,6 +161,10 @@ export async function saveSettings(input: {
   coachingCtaUrl: string;
   supportCtaLabel: string;
   supportCtaUrl: string;
+  blogAnalyticsReportEmails: string[];
+  blogAnalyticsReportFrequency: BlogAnalyticsReportFrequency;
+  notifyOnNewUserSignup: boolean;
+  notifyOnNewProgramRegistration: boolean;
 }) {
   const updateTimes = input.defaultScheduleInput
     .split(",")
@@ -160,6 +222,38 @@ export async function saveSettings(input: {
           coachingCtaUrl: input.coachingCtaUrl,
           supportCtaLabel: input.supportCtaLabel,
           supportCtaUrl: input.supportCtaUrl,
+        },
+      },
+    }),
+    db.appSetting.upsert({
+      where: { key: "blog_analytics_report" },
+      update: {
+        value: {
+          emails: input.blogAnalyticsReportEmails,
+          frequency: input.blogAnalyticsReportFrequency,
+        },
+      },
+      create: {
+        key: "blog_analytics_report",
+        value: {
+          emails: input.blogAnalyticsReportEmails,
+          frequency: input.blogAnalyticsReportFrequency,
+        },
+      },
+    }),
+    db.appSetting.upsert({
+      where: { key: "team_alert_notifications" },
+      update: {
+        value: {
+          notifyOnNewUserSignup: input.notifyOnNewUserSignup,
+          notifyOnNewProgramRegistration: input.notifyOnNewProgramRegistration,
+        },
+      },
+      create: {
+        key: "team_alert_notifications",
+        value: {
+          notifyOnNewUserSignup: input.notifyOnNewUserSignup,
+          notifyOnNewProgramRegistration: input.notifyOnNewProgramRegistration,
         },
       },
     }),

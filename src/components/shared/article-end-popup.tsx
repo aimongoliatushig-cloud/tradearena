@@ -4,6 +4,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
+import { BLOG_ANALYTICS_EVENT_TYPE } from "@/lib/blog-analytics";
+import { sendBlogAnalyticsEvent } from "@/lib/blog-analytics-client";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
@@ -16,9 +18,31 @@ type PopupData = {
   ctaUrl: string;
 };
 
-export function ArticleEndPopup({ popup }: { popup: PopupData }) {
+export function ArticleEndPopup({
+  popup,
+  popupId,
+  postId,
+}: {
+  popup: PopupData;
+  popupId: string;
+  postId: string;
+}) {
   const triggerRef = useRef<HTMLDivElement | null>(null);
+  const hasTrackedRef = useRef(false);
   const [open, setOpen] = useState(false);
+
+  function openPopup() {
+    setOpen(true);
+
+    if (!hasTrackedRef.current) {
+      hasTrackedRef.current = true;
+      void sendBlogAnalyticsEvent({
+        postId,
+        popupId,
+        eventType: BLOG_ANALYTICS_EVENT_TYPE.POPUP_SHOWN,
+      });
+    }
+  }
 
   useEffect(() => {
     const node = triggerRef.current;
@@ -27,7 +51,7 @@ export function ArticleEndPopup({ popup }: { popup: PopupData }) {
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries.some((entry) => entry.isIntersecting)) {
-          setOpen(true);
+          openPopup();
           observer.disconnect();
         }
       },
@@ -46,7 +70,7 @@ export function ArticleEndPopup({ popup }: { popup: PopupData }) {
           <h3 className="text-2xl font-semibold tracking-[-0.03em] text-white">{popup.title}</h3>
           <p className="text-sm leading-7 text-white/60">{popup.body}</p>
         </div>
-        <Button onClick={() => setOpen(true)}>{popup.ctaLabel}</Button>
+        <Button onClick={openPopup}>{popup.ctaLabel}</Button>
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>

@@ -3,10 +3,16 @@ export const dynamic = "force-dynamic";
 import Link from "next/link";
 
 import { BlogPostForm } from "@/components/admin/blog-post-form";
+import { FlashMessage } from "@/components/shared/flash-message";
 import { Button } from "@/components/ui/button";
 import { listActiveBlogPopups, listBlogCategories } from "@/server/services/blog-service";
 
-export default async function AdminNewBlogPostPage() {
+export default async function AdminNewBlogPostPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const flash = await searchParams;
   const [categories, popups] = await Promise.all([listBlogCategories(), listActiveBlogPopups()]);
 
   return (
@@ -22,6 +28,11 @@ export default async function AdminNewBlogPostPage() {
           </Button>
         ) : null}
       </div>
+
+      <FlashMessage
+        success={typeof flash.success === "string" ? flash.success : undefined}
+        error={typeof flash.error === "string" ? flash.error : undefined}
+      />
 
       <BlogPostForm categories={categories} popups={popups} returnPath="/admin/blog/posts/new" />
     </section>

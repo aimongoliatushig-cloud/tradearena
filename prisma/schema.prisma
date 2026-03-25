@@ -87,6 +87,13 @@ enum BlogPostStatus {
   PUBLISHED
 }
 
+enum BlogAnalyticsEventType {
+  POST_VIEW
+  PREVIEW_VIEW
+  FULL_READ
+  POPUP_SHOWN
+}
+
 enum CourseAccessLevel {
   BASIC
   TRADING_PLAN
@@ -365,6 +372,7 @@ model BlogPopup {
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
   posts       BlogPost[]
+  analyticsEvents BlogPostAnalyticsEvent[]
 
   @@index([isActive, updatedAt])
 }
@@ -386,9 +394,35 @@ model BlogPost {
   updatedAt                DateTime       @updatedAt
   category                 BlogCategory   @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   popup                    BlogPopup?     @relation(fields: [popupId], references: [id], onDelete: SetNull)
+  analyticsEvents          BlogPostAnalyticsEvent[]
 
   @@index([status, publishedAt])
   @@index([categoryId, publishedAt])
+}
+
+model BlogPostAnalyticsEvent {
+  id              String                 @id @default(cuid())
+  postId          String
+  popupId         String?
+  eventType       BlogAnalyticsEventType
+  occurredAt      DateTime               @default(now())
+  isAuthenticated Boolean                @default(false)
+  readerKey       String
+  readerName      String?
+  readerEmail     String?
+  clerkUserId     String?
+  anonymousId     String?
+  ipAddress       String?
+  userAgent       String?
+  metadata        Json?
+  post            BlogPost               @relation(fields: [postId], references: [id], onDelete: Cascade)
+  popup           BlogPopup?             @relation(fields: [popupId], references: [id], onDelete: SetNull)
+
+  @@index([postId, eventType, occurredAt])
+  @@index([popupId, eventType, occurredAt])
+  @@index([readerKey, eventType, occurredAt])
+  @@index([clerkUserId, occurredAt])
+  @@index([occurredAt, eventType])
 }
 
 model PackageTier {
