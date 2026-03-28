@@ -30,10 +30,12 @@ type Viewer = {
 
 export function ApplyForm({
   rooms,
+  returnBackUrl,
   viewer,
   preferredRoomId,
 }: {
   rooms: SignupRoomOption[];
+  returnBackUrl?: string;
   viewer: Viewer;
   preferredRoomId?: string;
 }) {
@@ -48,11 +50,11 @@ export function ApplyForm({
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm leading-7 text-white/62">
-            Эхлээд хэрэглэгчийн бүртгэлтэй байх шаардлагатай. Нэвтэрсний дараа нээлттэй өрөөнөөс сонгож,
-            орох хураамж, холбоо барих мэдээллээ илгээх боломжтой.
+            Эхлээд хэрэглэгчийн бүртгэлтэй байх шаардлагатай. Нэвтэрсний дараа нээлттэй room-оос сонгож, холбоо барих
+            мэдээллээ илгээх боломжтой.
           </p>
           <ClerkPromptActions
-            returnBackUrl="/apply"
+            returnBackUrl={returnBackUrl ?? "/apply"}
             signUpClassName="inline-flex h-11 items-center justify-center rounded-2xl border border-[#2dd0b1]/45 px-5 text-sm font-semibold text-white"
           />
         </CardContent>
@@ -81,8 +83,8 @@ export function ApplyForm({
               {hasRooms ? (
                 rooms.map((room) => (
                   <option key={room.id} value={room.id} className="bg-[#101114]">
-                    {accountSizeLabels[room.accountSize]} | {room.title} | Хураамж {formatUsd(room.entryFeeUsd)} |{" "}
-                    {room.activeApplicantCount}/{room.maxTraderCapacity}
+                    {accountSizeLabels[room.accountSize]} | {formatUsd(room.entryFeeUsd)} | {room.title} | Active signup{" "}
+                    {room.activeApplicantCount}
                   </option>
                 ))
               ) : (
@@ -123,8 +125,8 @@ export function ApplyForm({
           </div>
 
           <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm leading-6 text-white/60">
-            Таны бүртгэл баталгаажсаны дараа тухайн өрөөний хүлээлгийн жагсаалтад орно. Өрөө 10 трейдертэй
-            болмогц орох хураамж төлөх болон эхлэх бэлтгэлийн мэдээллийг и-мэйлээр илгээнэ.
+            Таны бүртгэл баталгаажсаны дараа тухайн account size-ийн дараалалд орно. Room дүүрмэгц орох хураамж төлөх болон
+            эхлэх бэлтгэлийн мэдээллийг и-мэйлээр илгээнэ.
           </div>
 
           <div className="space-y-2">

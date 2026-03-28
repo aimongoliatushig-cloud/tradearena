@@ -47,6 +47,8 @@ export async function submitApplicantAction(_: ActionState, formData: FormData):
       ipAddress: getClientIp(headerStore),
     });
 
+    revalidatePath("/");
+    revalidatePath("/apply");
     revalidatePath("/packages");
     revalidatePath("/admin/applicants");
 

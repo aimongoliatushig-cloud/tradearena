@@ -10,6 +10,7 @@ import { db } from "@/lib/db";
 import { getUserFacingErrorMessage } from "@/lib/error-utils";
 import {
   courseFormSchema,
+  enrollmentDeleteSchema,
   enrollmentMoveSchema,
   packageTierFormSchema,
   paymentConfirmationSchema,
@@ -27,7 +28,7 @@ import {
 } from "@/lib/validators";
 import { addApplicantComment, moveApplicantToTrash, restoreApplicantFromTrash, updateApplicantStatus } from "@/server/services/applicant-service";
 import { upsertCourse } from "@/server/services/course-service";
-import { confirmPaymentAndEnroll, markPaymentAsUnpaid, mergePackageRooms, moveEnrollmentToRoom } from "@/server/services/enrollment-service";
+import { confirmPaymentAndEnroll, deleteEnrollment, markPaymentAsUnpaid, mergePackageRooms, moveEnrollmentToRoom } from "@/server/services/enrollment-service";
 import { upsertPackageTier } from "@/server/services/package-service";
 import { upsertResource } from "@/server/services/resource-service";
 import { deleteTrader, upsertRoom, upsertTrader } from "@/server/services/room-service";
@@ -49,6 +50,11 @@ function buildRedirect(pathname: string, type: "success" | "error", message: str
   const query = params.toString();
   const nextPath = query ? `${basePath}?${query}` : basePath;
   return hash ? `${nextPath}#${hash}` : nextPath;
+}
+
+function getPathnameOnly(pathname: string) {
+  const [pathWithSearch] = pathname.split("#", 2);
+  return pathWithSearch.split("?", 2)[0] || pathname;
 }
 
 function redirectWithMessage(pathname: string, type: "success" | "error", message: string): never {
@@ -477,6 +483,37 @@ export async function moveEnrollmentAction(formData: FormData) {
   }
 
   redirectWithMessage(returnPath, "success", "Элсэлтийг амжилттай шилжүүллээ.");
+}
+
+export async function deleteEnrollmentAction(formData: FormData) {
+  const returnPath = String(formData.get("returnPath") || "/admin/enrollments");
+  await ensureAdminAccess(returnPath);
+
+  try {
+    const parsed = enrollmentDeleteSchema.parse({
+      enrollmentId: formData.get("enrollmentId"),
+    });
+
+    const deleted = await deleteEnrollment({
+      enrollmentId: parsed.enrollmentId,
+      actorId: "admin",
+    });
+
+    revalidatePaths([
+      "/",
+      "/admin",
+      "/admin/enrollments",
+      "/admin/rooms",
+      "/dashboard",
+      "/packages",
+      getPathnameOnly(returnPath),
+      ...(deleted.roomId ? [`/admin/rooms/${deleted.roomId}`] : []),
+    ]);
+  } catch (error) {
+    redirectWithMessage(returnPath, "error", getUserFacingErrorMessage(error, "Failed to delete this signup."));
+  }
+
+  redirectWithMessage(returnPath, "success", "Signup deleted.");
 }
 
 const roomMergeSchema = z.object({

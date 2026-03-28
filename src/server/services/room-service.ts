@@ -9,6 +9,13 @@ import { normalizeFtmoUrl, parseScheduleInput } from "@/lib/validators";
 import { recomputeRoomLeaderboard } from "@/server/services/leaderboard-service";
 import { getDefaultScheduleConfig } from "@/server/services/settings-service";
 
+const ACTIVE_SIGNUP_APPLICANT_STATUSES = [
+  ApplicantStatus.PENDING,
+  ApplicantStatus.ACCEPTED,
+  ApplicantStatus.ASSIGNED,
+  ApplicantStatus.INVITATION_SENT,
+] as const;
+
 export async function upsertRoom(input: {
   id?: string;
   title: string;
@@ -88,26 +95,47 @@ export async function listPublicRooms() {
 export async function listSignupRooms() {
   await ensureSignupRooms();
 
-  const rooms = await db.challengeRoom.findMany({
-    where: {
-      isPackageRoom: false,
-      publicStatus: RoomPublicStatus.PUBLIC,
-      lifecycleStatus: ROOM_LIFECYCLE_STATUS.SIGNUP_OPEN,
-    },
-    include: {
-      applicants: {
-        where: {
-          status: {
-            not: ApplicantStatus.REJECTED,
-          },
-        },
-        select: { id: true },
+  const [rooms, applicants] = await Promise.all([
+    db.challengeRoom.findMany({
+      where: {
+        isPackageRoom: false,
+        publicStatus: RoomPublicStatus.PUBLIC,
+        lifecycleStatus: ROOM_LIFECYCLE_STATUS.SIGNUP_OPEN,
       },
-    },
-    orderBy: [{ startDate: "asc" }, { createdAt: "asc" }],
-  });
+      orderBy: [{ startDate: "asc" }, { createdAt: "asc" }],
+    }),
+    db.applicant.findMany({
+      where: {
+        desiredAccountSize: {
+          in: [...ACCOUNT_SIZE_OPTIONS],
+        },
+        status: {
+          in: [...ACTIVE_SIGNUP_APPLICANT_STATUSES],
+        },
+        trashedAt: null,
+      },
+      orderBy: [{ createdAt: "asc" }],
+      select: {
+        id: true,
+        desiredAccountSize: true,
+        fullName: true,
+        telegramUsername: true,
+      },
+    }),
+  ]);
 
-  return rooms.map((room) => ({
+  const roomByAccountSize = new Map(rooms.map((room) => [room.accountSize, room]));
+
+  return ACCOUNT_SIZE_OPTIONS.flatMap((accountSize) => {
+    const room = roomByAccountSize.get(accountSize);
+
+    if (!room) {
+      return [];
+    }
+
+    const sizeApplicants = applicants.filter((applicant) => applicant.desiredAccountSize === accountSize);
+
+    return {
     id: room.id,
     title: room.title,
     slug: room.slug,
@@ -115,18 +143,24 @@ export async function listSignupRooms() {
     step: room.step,
     entryFeeUsd: room.entryFeeUsd || getDefaultEntryFeeUsd(room.accountSize),
     maxTraderCapacity: room.maxTraderCapacity,
-    activeApplicantCount: room.applicants.length,
-  }));
+    activeApplicantCount: sizeApplicants.length,
+    applicants: sizeApplicants.map((applicant) => ({
+      id: applicant.id,
+      username: formatApplicantUsername(applicant.telegramUsername, applicant.fullName),
+    })),
+    };
+  });
 }
 
 export async function getPublicHomepageData() {
-  const rooms = await listPublicRooms();
+  const [rooms, signupRooms] = await Promise.all([listPublicRooms(), listSignupRooms()]);
   const activeRooms = rooms.filter((room) => room.lifecycleStatus === ROOM_LIFECYCLE_STATUS.ACTIVE);
   const historicalRooms = rooms.filter((room) => room.lifecycleStatus !== ROOM_LIFECYCLE_STATUS.ACTIVE);
 
   return {
     activeRooms,
     historicalRooms,
+    signupRooms,
     totals: {
       roomCount: rooms.length,
       traderCount: rooms.reduce((sum, room) => sum + room.traders.length, 0),
@@ -420,4 +454,14 @@ function slugify(value: string) {
     .trim()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
+}
+
+function formatApplicantUsername(telegramUsername: string | null, fullName: string) {
+  const cleanedTelegram = telegramUsername?.trim();
+
+  if (cleanedTelegram) {
+    return cleanedTelegram.startsWith("@") ? cleanedTelegram : `@${cleanedTelegram}`;
+  }
+
+  return fullName.trim();
 }

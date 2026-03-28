@@ -13,8 +13,10 @@ import { DEFAULT_TARGET_PERCENT } from "@/lib/constants";
 import { buildProgressValue, formatPercent } from "@/lib/format";
 import { accountSizeLabels, courseAccessLevelLabels } from "@/lib/labels";
 import { sortTradersForLeaderboard } from "@/lib/leaderboard";
+import { ACCOUNT_SIZE_OPTIONS } from "@/lib/prisma-enums";
 import { formatUsd } from "@/lib/pricing";
 import { listLatestPublishedBlogPosts } from "@/server/services/blog-service";
+import { listPublicEnrollmentQueues } from "@/server/services/enrollment-service";
 import { listActivePackageTiers } from "@/server/services/package-service";
 import { getPublicHomepageData } from "@/server/services/room-service";
 
@@ -26,21 +28,22 @@ const memberValueCards = [
   },
   {
     title: "Индикатор ба хэрэгсэл",
-    text: "TradingView индикатор, lot calculator болон гадаад холбоостой хэрэгслүүдийг багцаар удирдана.",
+    text: "TradingView индикатор, lot calculator болон гаднын холбоостой хэрэгслүүдийг багцаар удирдана.",
     icon: Wrench,
   },
   {
     title: "Коучингийн шатлал",
-    text: "100K ба 200K түвшинд 1:1 коучинг, давуу дэмжлэг зэрэг нэмэлт үнэ цэн автоматаар холбогдоно.",
+    text: "100K ба 200K түвшинд 1:1 коучинг, давуу дэмжлэг зэрэг нэмэлт үнэ цэнэ автоматаар холбогдоно.",
     icon: Headphones,
   },
 ] as const;
 
 export default async function HomePage() {
-  const [{ activeRooms, historicalRooms }, latestPosts, packages] = await Promise.all([
+  const [{ activeRooms, historicalRooms }, latestPosts, packages, enrollmentQueues] = await Promise.all([
     getPublicHomepageData(),
     listLatestPublishedBlogPosts(),
     listActivePackageTiers(),
+    listPublicEnrollmentQueues(),
   ]);
 
   const leaderSummaries = activeRooms.map((room) => {
@@ -134,6 +137,7 @@ export default async function HomePage() {
         <div className="grid gap-4 lg:grid-cols-3">
           {memberValueCards.map((card) => {
             const Icon = card.icon;
+
             return (
               <div
                 key={card.title}
@@ -167,7 +171,7 @@ export default async function HomePage() {
         <div className="glass-panel p-6">
           <div className="flex items-center gap-3 text-white">
             <TrendingUp className="size-5 text-[#72dec5]" />
-            <h3 className="text-xl font-semibold tracking-[-0.03em]">Идэвхтэй FTMO өрөөнүүд</h3>
+            <h3 className="text-xl font-semibold tracking-[-0.03em] text-white">Идэвхтэй FTMO өрөөнүүд</h3>
           </div>
           <p className="mt-3 max-w-xl text-sm leading-7 text-white/58">
             Багцын платформ нэмэгдсэн ч FTMO лидер самбар, өрөөний гүйцэтгэлийн хяналт болон түүхэн үр дүн хэвээр ажиллана.
@@ -205,40 +209,62 @@ export default async function HomePage() {
         <div className="glass-panel p-6">
           <div className="flex items-center gap-3 text-white">
             <Sparkles className="size-5 text-[#72dec5]" />
-            <h3 className="text-xl font-semibold tracking-[-0.03em]">Ухаалаг элсэлтийн логик</h3>
+            <h3 className="text-xl font-semibold tracking-[-0.03em] text-white">Ухаалаг элсэлтийн логик</h3>
           </div>
-          <div className="mt-5 grid gap-4 text-sm text-white/58">
-            <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.03] p-4">
-              <div className="flex items-start gap-3">
-                <Users className="mt-0.5 size-5 text-[#72dec5]" />
-                <div>
-                  <div className="font-medium text-white">Өрөө дүүрэх логик</div>
-                  <div className="mt-1 leading-6">Нэг өрөө дээд тал нь 10 хэрэглэгчтэй. Дүүрвэл ижил багцын дараагийн өрөө автоматаар үүснэ.</div>
-                </div>
-              </div>
-            </div>
-            <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.03] p-4">
-              <div className="flex items-start gap-3">
-                <Headphones className="mt-0.5 size-5 text-[#72dec5]" />
-                <div>
-                  <div className="font-medium text-white">48 цагийн шийдвэр</div>
-                  <div className="mt-1 leading-6">
-                    Өрөө 48 цагт дүүрэхгүй бол нэгтгэх эсвэл хүлээх сонголт нээгдэж, шийдвэрийн дараагийн алхам автоматаар үргэлжилнэ.
+          <p className="mt-3 text-sm leading-7 text-white/58">
+            Account size бүр дээр package signup queue харуулна. `ACTIVE` room-д орчихсон, ажиллаж эхэлсэн хүмүүс энэ count-д
+            орохгүй.
+          </p>
+          <div className="mt-5 grid gap-3 md:grid-cols-2">
+            {ACCOUNT_SIZE_OPTIONS.map((accountSize) => {
+              const queue = enrollmentQueues.find((item) => item.accountSize === accountSize);
+
+              if (!queue) {
+                return null;
+              }
+
+              return (
+                <div key={queue.accountSize} className="rounded-[1.5rem] border border-white/10 bg-white/[0.03] p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="flex items-center gap-2 font-medium text-white">
+                        <Users className="size-4 text-[#72dec5]" />
+                        {accountSizeLabels[queue.accountSize]} · {formatUsd(queue.entryFeeUsd)}
+                      </div>
+                      <div className="mt-1 text-xs text-white/46">{queue.packageName}</div>
+                    </div>
+                    <div className="rounded-full border border-[#72dec5]/20 bg-[#72dec5]/10 px-3 py-1 text-xs font-semibold text-[#b8f3e5]">
+                      {queue.signupCount} хүн
+                    </div>
+                  </div>
+
+                  <div className="mt-4">
+                    <div className="text-[11px] uppercase tracking-[0.18em] text-white/42">Бүртгүүлсэн username</div>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {queue.members.length ? (
+                        queue.members.map((member) => (
+                          <span
+                            key={member.id}
+                            className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-xs text-white/70"
+                          >
+                            {member.username}
+                          </span>
+                        ))
+                      ) : (
+                        <span className="text-sm text-white/46">Одоогоор бүртгэл алга.</span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="mt-4 flex items-center justify-between gap-3">
+                    <div className="text-xs leading-5 text-white/44">Queue count нь ACTIVE room-д явж буй хүмүүсийг хасаж тоологдоно.</div>
+                    <Link href={`/checkout/${queue.packageSlug}`} className={buttonVariants({ size: "sm" })}>
+                      Бүртгүүлэх
+                    </Link>
                   </div>
                 </div>
-              </div>
-            </div>
-            <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.03] p-4">
-              <div className="flex items-start gap-3">
-                <BookOpen className="mt-0.5 size-5 text-[#72dec5]" />
-                <div>
-                  <div className="font-medium text-white">Контентын эрхийн хяналт</div>
-                  <div className="mt-1 leading-6">
-                    Сургалт, стратеги, индикатор, хэрэгслийн эрх нь багцын холболтын хүснэгтээр удирдагдаж, хяналтын самбар дээр шүүгдэж харагдана.
-                  </div>
-                </div>
-              </div>
-            </div>
+              );
+            })}
           </div>
         </div>
       </section>
@@ -265,7 +291,7 @@ export default async function HomePage() {
         <div className="glass-panel p-6">
           <div className="flex items-center gap-3 text-white">
             <Trophy className="size-5 text-[#72dec5]" />
-            <h3 className="text-xl font-semibold tracking-[-0.03em]">Түүх ба ялагчид</h3>
+            <h3 className="text-xl font-semibold tracking-[-0.03em] text-white">Түүх ба ялагчид</h3>
           </div>
           <p className="mt-3 max-w-xl text-sm leading-7 text-white/58">
             Дууссан өрөөнүүдийн ялагч, эрэмбэ, дүрэм зөрчсөн төлөв болон snapshot-ууд түүхэнд хадгалагдана.
@@ -292,11 +318,11 @@ export default async function HomePage() {
         <div className="glass-panel p-6">
           <div className="flex items-center gap-3 text-white">
             <Sparkles className="size-5 text-[#72dec5]" />
-            <h3 className="text-xl font-semibold tracking-[-0.03em]">Платформын үр дүн</h3>
+            <h3 className="text-xl font-semibold tracking-[-0.03em] text-white">Платформын үр дүн</h3>
           </div>
           <div className="mt-5 grid gap-4 text-sm text-white/58">
             <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.03] p-4">
-              <div className="font-medium text-white">Шаталсан үнэ цэн</div>
+              <div className="font-medium text-white">Шаталсан үнэ цэнэ</div>
               <div className="mt-1 leading-6">Багц ахих тусам сургалтын түвшин, стратегийн тоо, коучинг болон дэмжлэг шатлан нэмэгдэнэ.</div>
             </div>
             <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.03] p-4">

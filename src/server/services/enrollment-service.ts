@@ -34,6 +34,37 @@ function buildApplicantLookupKey(clerkUserId: string, accountSize: AccountSize) 
   return `${clerkUserId}:${accountSize}`;
 }
 
+function formatPublicEnrollmentUsername(input: {
+  applicantTelegramUsername?: string | null;
+  applicantFullName?: string | null;
+  paymentCustomerName?: string | null;
+  paymentCustomerEmail?: string | null;
+  clerkUserId: string;
+}) {
+  const telegramUsername = input.applicantTelegramUsername?.trim();
+
+  if (telegramUsername) {
+    return telegramUsername.startsWith("@") ? telegramUsername : `@${telegramUsername}`;
+  }
+
+  const fullName = input.applicantFullName?.trim();
+  if (fullName) {
+    return fullName;
+  }
+
+  const customerName = input.paymentCustomerName?.trim();
+  if (customerName) {
+    return customerName;
+  }
+
+  const customerEmail = input.paymentCustomerEmail?.trim();
+  if (customerEmail) {
+    return customerEmail.split("@")[0] || customerEmail;
+  }
+
+  return input.clerkUserId;
+}
+
 function getAdminPaymentState(status: PaymentStatus | null | undefined) {
   return status === PaymentStatus.CONFIRMED ? "paid" : "pending";
 }
@@ -63,6 +94,112 @@ export function hasConfirmedPaymentAccess(
   } | null | undefined,
 ) {
   return enrollment?.payment?.status === PaymentStatus.CONFIRMED;
+}
+
+export async function listPublicEnrollmentQueues() {
+  const packageTiers = await db.packageTier.findMany({
+    where: { isActive: true },
+    orderBy: [{ sortOrder: "asc" }, { priceUsd: "asc" }],
+  });
+
+  if (!packageTiers.length) {
+    return [];
+  }
+
+  const enrollments = await db.packageEnrollment.findMany({
+    where: {
+      packageTierId: {
+        in: packageTiers.map((tier) => tier.id),
+      },
+      status: {
+        in: [...OPEN_ENROLLMENT_STATUSES],
+      },
+    },
+    include: {
+      packageTier: {
+        select: {
+          accountSize: true,
+          slug: true,
+          nameMn: true,
+          priceUsd: true,
+          maxUsers: true,
+        },
+      },
+      room: {
+        select: {
+          lifecycleStatus: true,
+        },
+      },
+      payment: {
+        select: {
+          customerName: true,
+          customerEmail: true,
+        },
+      },
+    },
+    orderBy: [{ createdAt: "asc" }],
+  });
+
+  const filteredEnrollments = enrollments.filter((enrollment) => !enrollment.room || enrollment.room.lifecycleStatus !== RoomLifecycleStatus.ACTIVE);
+  const clerkUserIds = [...new Set(filteredEnrollments.map((item) => item.clerkUserId))];
+  const applicants = clerkUserIds.length
+    ? await db.applicant.findMany({
+        where: {
+          clerkUserId: {
+            in: clerkUserIds,
+          },
+          trashedAt: null,
+        },
+        select: {
+          clerkUserId: true,
+          fullName: true,
+          telegramUsername: true,
+          desiredAccountSize: true,
+          createdAt: true,
+        },
+        orderBy: [{ createdAt: "desc" }],
+      })
+    : [];
+
+  const applicantByEnrollmentKey = new Map<string, (typeof applicants)[number]>();
+  for (const applicant of applicants) {
+    if (!applicant.clerkUserId) {
+      continue;
+    }
+
+    const key = buildApplicantLookupKey(applicant.clerkUserId, applicant.desiredAccountSize);
+    if (!applicantByEnrollmentKey.has(key)) {
+      applicantByEnrollmentKey.set(key, applicant);
+    }
+  }
+
+  return packageTiers.map((packageTier) => {
+    const sizeEnrollments = filteredEnrollments.filter((enrollment) => enrollment.packageTierId === packageTier.id);
+
+    return {
+      accountSize: packageTier.accountSize,
+      packageSlug: packageTier.slug,
+      packageName: packageTier.nameMn,
+      entryFeeUsd: packageTier.priceUsd,
+      maxUsers: packageTier.maxUsers,
+      signupCount: sizeEnrollments.length,
+      members: sizeEnrollments.map((enrollment) => {
+        const applicant =
+          applicantByEnrollmentKey.get(buildApplicantLookupKey(enrollment.clerkUserId, enrollment.packageTier.accountSize)) ?? null;
+
+        return {
+          id: enrollment.id,
+          username: formatPublicEnrollmentUsername({
+            applicantTelegramUsername: applicant?.telegramUsername,
+            applicantFullName: applicant?.fullName,
+            paymentCustomerName: enrollment.payment?.customerName,
+            paymentCustomerEmail: enrollment.payment?.customerEmail,
+            clerkUserId: enrollment.clerkUserId,
+          }),
+        };
+      }),
+    };
+  });
 }
 
 function getDecisionDeadline(base = new Date()) {
@@ -143,6 +280,15 @@ async function syncPackageRoomStatus(tx: Prisma.TransactionClient, roomId: strin
   });
 
   if (!room?.isPackageRoom) {
+    return;
+  }
+
+  if (
+    room.lifecycleStatus === RoomLifecycleStatus.ACTIVE ||
+    room.lifecycleStatus === RoomLifecycleStatus.EXPIRED ||
+    room.lifecycleStatus === RoomLifecycleStatus.COMPLETED ||
+    room.lifecycleStatus === RoomLifecycleStatus.ARCHIVED
+  ) {
     return;
   }
 
@@ -668,6 +814,39 @@ export async function markPaymentAsUnpaid(input: { paymentId: string; actorId?: 
         room: true,
       },
     });
+  }, INTERACTIVE_TRANSACTION_OPTIONS);
+}
+
+export async function deleteEnrollment(input: { enrollmentId: string; actorId?: string }) {
+  return db.$transaction(async (tx) => {
+    const enrollment = await tx.packageEnrollment.findUnique({
+      where: { id: input.enrollmentId },
+      select: {
+        id: true,
+        roomId: true,
+        paymentId: true,
+      },
+    });
+
+    if (!enrollment) {
+      throw new Error("Элсэлт олдсонгүй.");
+    }
+
+    await tx.packageEnrollment.delete({
+      where: { id: enrollment.id },
+    });
+
+    if (enrollment.paymentId) {
+      await tx.paymentRecord.deleteMany({
+        where: { id: enrollment.paymentId },
+      });
+    }
+
+    if (enrollment.roomId) {
+      await syncPackageRoomStatus(tx, enrollment.roomId);
+    }
+
+    return enrollment;
   }, INTERACTIVE_TRANSACTION_OPTIONS);
 }
 

@@ -7,7 +7,7 @@ import { SubmitButton } from "@/components/forms/submit-button";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { confirmManualPaymentAction, markPaymentAsUnpaidAction, moveEnrollmentAction } from "@/server/actions/admin-actions";
+import { confirmManualPaymentAction, deleteEnrollmentAction, markPaymentAsUnpaidAction, moveEnrollmentAction } from "@/server/actions/admin-actions";
 
 type Tone = "success" | "warning" | "danger" | "info" | "muted";
 
@@ -289,6 +289,25 @@ export function AdminEnrollmentsTable({
                           No alternative rooms are available for this package right now.
                         </div>
                       )}
+
+                      <form
+                        action={deleteEnrollmentAction}
+                        className="space-y-3"
+                        onSubmit={(event) => {
+                          if (!window.confirm(`Delete ${selectedRow.displayName}'s signup? This removes the payment record and frees the room spot.`)) {
+                            event.preventDefault();
+                          }
+                        }}
+                      >
+                        <input type="hidden" name="enrollmentId" value={selectedRow.id} />
+                        <input type="hidden" name="returnPath" value={returnPath} />
+                        <div className="rounded-[1rem] border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm leading-7 text-rose-100/90">
+                          Permanently delete this signup, its payment proof, and any current room assignment. Room counts update immediately after removal.
+                        </div>
+                        <SubmitButton className="w-full justify-center" size="sm" variant="destructive">
+                          Delete Signup
+                        </SubmitButton>
+                      </form>
                     </div>
                   </section>
 

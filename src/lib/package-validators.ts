@@ -84,6 +84,10 @@ export const enrollmentMoveSchema = z.object({
   roomId: z.string().cuid(),
 });
 
+export const enrollmentDeleteSchema = z.object({
+  enrollmentId: z.string().cuid(),
+});
+
 export const enrollmentDecisionSchema = z.object({
   enrollmentId: z.string().cuid(),
   decision: z.nativeEnum(ENROLLMENT_DECISION),
